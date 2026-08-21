@@ -9,6 +9,7 @@
     "test:headed": "node build.js && playwright test --headed"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.0"
+    "@playwright/test": "^1.49.0",
+    "terser": "^5.36.0"
   }
 }

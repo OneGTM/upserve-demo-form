@@ -19,6 +19,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { execFileSync } = require('child_process');
 
 const ROOT = __dirname;
 const SRC = path.join(ROOT, 'src', 'webflow-embed.html');
@@ -33,6 +35,29 @@ const EMBED_LIMIT = 50000;
    `/` inside a character class.
    --------------------------------------------------------------------------- */
 function minifyJs(src) {
+  const bin = path.join(ROOT, 'node_modules', '.bin', 'terser');
+  if (fs.existsSync(bin)) {
+    const tmp = path.join(os.tmpdir(), 'usv-terser-in.js');
+    try {
+      fs.writeFileSync(tmp, src);
+      const out = execFileSync(bin,
+        [tmp, '--compress', '--mangle', '--format', 'quote_style=1'],
+        { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+      fs.unlinkSync(tmp);
+      if (out && out.trim()) return out.trim();
+    } catch (e) {
+      console.warn('  warn: terser failed, falling back to the built-in stripper');
+      console.warn('        ' + String(e.message).split('\n')[0]);
+    }
+  } else {
+    console.warn('  warn: terser not installed — run `npm install` for a smaller build');
+  }
+  return stripAndCollapse(src);
+}
+
+/* The fallback: comment stripping and whitespace collapsing only. Keeps the
+   build working without node_modules, just larger. */
+function stripAndCollapse(src) {
   let out = '';
   let i = 0;
   const n = src.length;

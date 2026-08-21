@@ -27,29 +27,30 @@ somewhere useful, and neither one creates anything in Default.
 
 ## Install in Webflow
 
-`node build.js` prints exactly which file(s) to paste, and only writes files
-that are actually pasteable — if the form is over the cap you will not find a
-single `embed.html` sitting there to paste by mistake. Right now the form is
-past Webflow's 50,000-character cap for a single embed, so it builds as two:
-
 1. Open the demo page in the Designer.
-2. Drag an **Embed** element. Paste all of `webflow/embed-part1.html`. Save.
-3. Drag a **second Embed** directly below it. Paste `webflow/embed-part2.html`.
+2. Drag an **Embed** element where the form should sit.
+3. Paste all of `webflow/embed.html`.
 4. Save and publish.
 
-**Order matters** — part 1 is the styles and markup, part 2 is the script that
-wires them up.
+One paste. Nothing in Page Settings, no second embed, no external script.
 
-Nothing goes in Page Settings; those fields cap at 20,000 characters. If the
-form ever shrinks back under 50,000 the build emits a single
-`webflow/embed.html` instead and tells you so.
+`node build.js` prints exactly what to paste and only writes files that are
+actually pasteable, so an oversized file can never sit there waiting to be
+truncated. If the form ever outgrows the cap it splits into
+`embed-part1.html` + `embed-part2.html` and says so.
 
 ### Why there's a build step
 
 Webflow caps a Code Embed at
-[50,000 characters](https://help.webflow.com/hc/en-us/articles/33961332238611-Custom-code-embed).
-The readable source is ~86,700 so `build.js` strips comments, collapses
-whitespace, and shortens the `usv-*` class names. fails loudly if an edit ever pushes it over.
+[50,000 characters](https://help.webflow.com/hc/en-us/articles/33961332238611-Custom-code-embed)
+and **truncates silently** past it. The readable source is ~95,000, so
+`build.js` runs it through terser (compress + mangle), minifies the CSS,
+collapses the markup, and shortens the `usv-*` class names. Output is
+**46,461** — it fails loudly if an edit ever pushes it over.
+
+Terser is worth ~7,200 characters on its own; without it the build still
+works but falls back to comment-and-whitespace stripping and splits into two
+embeds. Run `npm install` to get the single-paste build.
 
 Nothing is renamed inside the JavaScript, so the logic is still readable in
 devtools. Only the CSS class and ID names are shortened; `embed.names.json`
@@ -486,9 +487,8 @@ the brand black (`#474747`, `#737373`) rather than off-palette hues.
 - **Mobile viewport.** The layout stacks below 480px, inputs are 16px so iOS
   doesn't zoom on focus, and tap targets measure ~51px. Verified via computed
   styles and the grid rule; worth one pass on a real handset before launch.
-- **Size.** Two embeds: part 1 is 18.5k, part 2 is 35.4k, both well inside the
-  50,000 cap. `build.js` collapses back to a single `embed.html` if the form
-  ever fits again — it is currently ~3.9k over that. This is the binding constraint now: a large new section will need
+- **Size.** 46,461 of 50,000 — about 3,500 spare. Past that the build splits
+  into two embeds automatically rather than truncating. This is the binding constraint now: a large new section will need
   something trimmed first. `build.js` fails loudly rather than letting Webflow
   truncate silently. A large new section may need something trimmed; `build.js` will
   tell you rather than letting Webflow truncate silently.

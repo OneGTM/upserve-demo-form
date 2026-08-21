@@ -9,6 +9,12 @@ webflow/embed-part2.html
 preview.html
 prototype.html
 
+# iCloud Drive conflict copies. It appends " 2" to a filename when two
+# machines touch the same file, which slips past an exact-name ignore — and
+# these are build outputs, so they carry the API key.
+* [0-9].*
+*\ [0-9].*
+
 # Scratch
 _*.html
 .DS_Store

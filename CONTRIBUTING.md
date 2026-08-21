@@ -33,15 +33,14 @@ Never commit straight to `main`.
 the next `node build.js` overwrites your changes.
 
 ```
-src/webflow-embed.html   ->  webflow/embed-part1.html   styles + markup
-                         ->  webflow/embed-part2.html   logic
-                         ->  preview.html               local test, readable source
-                         ->  prototype.html             shareable demo, no live calls
+src/webflow-embed.html   ->  webflow/embed.html   the paste-ready embed
+                         ->  preview.html         local test, readable source
+                         ->  prototype.html       shareable demo, no live calls
 ```
 
-The build splits automatically once the embed passes Webflow's 50,000-character
-cap, and prints which files to paste. Under the cap it emits a single
-`webflow/embed.html` instead.
+`npm install` matters for the build, not just the tests: terser is worth ~7,200
+characters, which is the difference between one embed and two. Without it the
+build still works, just larger, and splits into two parts.
 
 Build outputs are gitignored because they carry the live API key. Clone, add
 the key, build.
