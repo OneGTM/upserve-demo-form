@@ -20,12 +20,21 @@ const HTML = buildPage();
 /** When each page was rendered, so we can respect the real speed floor. */
 const openedAt = new WeakMap();
 
-async function open(page) {
+/** Click the Continue that is actually on screen — step 0 and step 1 both have one. */
+async function clickContinue(page) {
+  await page.locator('button:visible').filter({ hasText: /continue/i }).first().click();
+}
+
+/** Open the form and clear the triage step as a prospect. */
+async function open(page, visitor = 'prospect') {
   await page.setContent(HTML, { waitUntil: 'load' });
   await page.waitForFunction(() => !!document.querySelector('[role="combobox"]'));
   openedAt.set(page, Date.now());
-  // let boot() finish wiring the provider
   await page.waitForTimeout(150);
+  if (visitor) {
+    await page.locator('input[value="' + visitor + '"]').check({ force: true });
+    await clickContinue(page);
+  }
 }
 
 /**
@@ -61,7 +70,7 @@ async function chooseType(page, value = 'Full-service restaurant') {
 }
 
 async function continueToStep2(page) {
-  await page.getByRole('button', { name: /continue/i }).click();
+  await clickContinue(page);
   await expect(page.locator('input[name="first_name"]')).toBeVisible();
 }
 
@@ -186,10 +195,18 @@ test('submitting under the speed floor blocks, and Default is never called',
     // slow run the setup alone takes longer than the floor, and the trap
     // correctly does not fire. Here the form only ever sees ~1.2s elapse,
     // however long the machine actually takes.
-    await page.clock.install();
+    // install() alone installs controllable timers but leaves Date.now()
+    // tracking real time — pauseAt() is what actually freezes it.
+    const T0 = new Date("2026-01-01T12:00:00Z");
+    await page.clock.install({ time: T0 });
+    await page.clock.pauseAt(T0);
     await page.setContent(HTML, { waitUntil: 'load' });
     await page.waitForFunction(() => !!document.querySelector('[role="combobox"]'));
     await page.clock.runFor(200);
+
+    await page.locator('input[value="prospect"]').check({ force: true });
+    await clickContinue(page);
+    await page.clock.runFor(100);
 
     const input = page.locator('[role="combobox"]');
     await input.click();
@@ -199,7 +216,7 @@ test('submitting under the speed floor blocks, and Default is never called',
     await page.clock.runFor(200);                 // place details
 
     await page.selectOption('select[name="business_type"]', 'Full-service restaurant');
-    await page.getByRole('button', { name: /continue/i }).click();
+    await clickContinue(page);
     await fillContact(page);
     await page.clock.runFor(400);
 
@@ -276,7 +293,7 @@ test('an email on the restaurant domain is the strongest match', async ({ page }
 test('step 1 will not advance without a business type', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Tautog');
-  await page.getByRole('button', { name: /continue/i }).click();
+  await clickContinue(page);
   await expect(page.locator('input[name="first_name"]')).toHaveCount(1);
   await expect(page.locator('input[name="first_name"]')).not.toBeVisible();
 });
@@ -331,6 +348,8 @@ test('UTM and gclid ride along with the lead', async ({ page }) => {
   await page.setContent(HTML, { waitUntil: 'load' });
   openedAt.set(page, Date.now());
   await page.waitForTimeout(150);
+  await page.locator('input[value="prospect"]').check({ force: true });
+  await clickContinue(page);
 
   await pickRestaurant(page, 'Tautog');
   await chooseType(page);
@@ -358,10 +377,10 @@ test('the funnel fires in order and survives a missing dataLayer', async ({ page
   await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
   const fired = await events(page);
   expect(fired).toEqual(expect.arrayContaining([
-    'usv_form_step1_view', 'usv_form_place_selected',
+    'usv_form_step0_view', 'usv_form_visitor_type', 'usv_form_place_selected',
     'usv_form_step2_view', 'usv_form_submit'
   ]));
-  expect(fired.indexOf('usv_form_step1_view'))
+  expect(fired.indexOf('usv_form_step0_view'))
     .toBeLessThan(fired.indexOf('usv_form_step2_view'));
 });
 
@@ -479,4 +498,77 @@ test('clicking the description still selects the card', async ({ page }) => {
   // y=42 lands on the description row, not the title
   await page.locator('[data-status="exploring"]').click({ position: { x: 120, y: 42 } });
   await expect(page.locator('input[value="exploring"]')).toBeChecked();
+});
+
+/* ── triage: the people who should never reach the sales queue ───────────── */
+
+test('a diner is answered and nothing is created', async ({ page }) => {
+  await open(page, null);                       // stop before the triage choice
+  await page.locator('input[value="diner"]').check({ force: true });
+  await clickContinue(page);
+
+  await expect(page.getByText(/we make the software/i)).toBeVisible();
+  await expect(page.locator('[role="combobox"]')).not.toBeVisible();
+  expect(await submissions(page)).toHaveLength(0);
+  expect(await events(page)).toContain('usv_form_deflected');
+});
+
+test('a diner can back out if they picked wrong', async ({ page }) => {
+  await open(page, null);
+  await page.locator('input[value="diner"]').check({ force: true });
+  await clickContinue(page);
+  await page.getByRole('button', { name: /that.s not me/i }).click();
+  await expect(page.getByText(/who are you|who are/i).first()).toBeVisible();
+});
+
+test('an existing customer gets support routes, not a demo form', async ({ page }) => {
+  await open(page, null);
+  await page.locator('input[value="current_customer"]').check({ force: true });
+  await clickContinue(page);
+
+  await expect(page.getByText(/faster here/i)).toBeVisible();
+  await expect(page.getByRole('link', { name: /help center/i })).toBeVisible();
+  await expect(page.getByRole('link', { name: /sign in/i })).toBeVisible();
+  await expect(page.locator('[role="combobox"]')).not.toBeVisible();
+  expect(await submissions(page)).toHaveLength(0);
+});
+
+test('an existing customer with an expansion question can still get through',
+  async ({ page }) => {
+    await open(page, null);
+    await page.locator('input[value="current_customer"]').check({ force: true });
+    await clickContinue(page);
+    await page.getByRole('button', { name: /add a location or upgrade/i }).click();
+
+    await expect(page.locator('[role="combobox"]')).toBeVisible();
+
+    await pickRestaurant(page, 'Tautog');
+    await chooseType(page);
+    await clickContinue(page);
+    await fillContact(page);
+    await submit(page);
+
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    expect((await submissions(page))[0].fields.visitor_type).toBe('current_customer');
+  });
+
+test('triage will not advance without a choice', async ({ page }) => {
+  await open(page, null);
+  await clickContinue(page);
+  await expect(page.locator('[role="combobox"]')).not.toBeVisible();
+  await expect(page.getByText(/pick the one that fits/i)).toBeVisible();
+});
+
+test('visitor_type reaches Default under a readable label', async ({ page }) => {
+  await open(page);                              // prospect
+  await pickRestaurant(page, 'Tautog');
+  await chooseType(page);
+  await clickContinue(page);
+  await fillContact(page);
+  await submit(page);
+
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  const { fields, labels } = (await submissions(page))[0];
+  expect(fields.visitor_type).toBe('prospect');
+  expect(labels.visitor_type).toBe('Who they are');
 });

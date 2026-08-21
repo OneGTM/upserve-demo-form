@@ -286,6 +286,40 @@ const embed =
 fs.mkdirSync(OUT_DIR, { recursive: true });
 fs.writeFileSync(path.join(OUT_DIR, 'embed.html'), embed);
 
+/* Webflow caps ONE Code Embed at 50,000 characters. When the form outgrows
+   that, the sanctioned workaround is a second embed — so emit the split
+   automatically rather than making someone discover the cap by having Webflow
+   truncate their paste. Splitting at the style/script boundary is safe: the
+   markup and CSS land first, the script runs after and finds the DOM waiting.
+
+   embed.html stays the canonical artifact either way — it is what the tests
+   drive, and what any host without a 50k cap can use as-is. */
+const styleEnd = embed.indexOf('</style>') + '</style>'.length;
+const usesSplit = embed.length > EMBED_LIMIT;
+
+if (usesSplit) {
+  const head =
+    '<!-- Upserve demo form — PART 1 of 2: styles + markup.\n' +
+    '     Paste into a Webflow Embed element. Part 2 goes in a SECOND embed\n' +
+    '     directly below this one. Order matters. -->\n' +
+    embed.slice(0, styleEnd) + '\n' +
+    embed.slice(styleEnd, embed.indexOf('<script>')).trim() + '\n';
+  const tail =
+    '<!-- Upserve demo form — PART 2 of 2: logic.\n' +
+    '     Paste into a Webflow Embed element placed AFTER part 1. -->\n' +
+    embed.slice(embed.indexOf('<script>'));
+
+  fs.writeFileSync(path.join(OUT_DIR, 'embed-part1.html'), head);
+  fs.writeFileSync(path.join(OUT_DIR, 'embed-part2.html'), tail);
+  module.exports = null;
+  global.__usvSplit = [head.length, tail.length];
+} else {
+  for (const stale of ['embed-part1.html', 'embed-part2.html']) {
+    const q = path.join(OUT_DIR, stale);
+    if (fs.existsSync(q)) fs.unlinkSync(q);
+  }
+}
+
 /* Names are shortened in the output. Keep the mapping so a minified class seen
    in devtools can be traced back to its source name. */
 fs.writeFileSync(
@@ -570,14 +604,23 @@ function buildPrototypeStub() {
 }
 
 /* --------------------------------------------------------------------------- */
-const spare = EMBED_LIMIT - embed.length;
-const ok = spare >= 0;
 console.log('\nBuilt from src/webflow-embed.html (' + source.length + ' readable chars)\n');
-console.log(
-  '  ' + (ok ? 'ok  ' : 'OVER') + '  webflow/embed.html'.padEnd(26) +
-  String(embed.length).padStart(6) + ' / ' + EMBED_LIMIT + ' chars' +
-  (ok ? '  (' + spare + ' spare)' : '  <-- exceeds the Webflow Embed limit')
-);
-console.log('  ok    preview.html'.padEnd(30) + String(preview.length).padStart(6) + ' chars');
+
+let ok = true;
+if (global.__usvSplit) {
+  const [a, b] = global.__usvSplit;
+  ok = a <= EMBED_LIMIT && b <= EMBED_LIMIT;
+  console.log('  embed.html is ' + embed.length + ' chars — over the 50,000 Webflow cap,');
+  console.log('  so it is split. Paste BOTH, part 1 first:\n');
+  console.log('  ' + (a <= EMBED_LIMIT ? 'ok  ' : 'OVER') + '  webflow/embed-part1.html'.padEnd(30) +
+              String(a).padStart(6) + ' / ' + EMBED_LIMIT);
+  console.log('  ' + (b <= EMBED_LIMIT ? 'ok  ' : 'OVER') + '  webflow/embed-part2.html'.padEnd(30) +
+              String(b).padStart(6) + ' / ' + EMBED_LIMIT);
+} else {
+  const spare = EMBED_LIMIT - embed.length;
+  console.log('  ok    webflow/embed.html'.padEnd(32) + String(embed.length).padStart(6) +
+              ' / ' + EMBED_LIMIT + '  (' + spare + ' spare, one paste)');
+}
+console.log('  ok    preview.html'.padEnd(32) + String(preview.length).padStart(6) + ' chars');
 console.log('  ok    prototype.html\n');
 process.exit(ok ? 0 : 1);

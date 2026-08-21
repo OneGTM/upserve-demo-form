@@ -152,9 +152,17 @@ function page() {
   if (!fs.existsSync(embedPath)) {
     throw new Error('webflow/embed.html is missing — run `node build.js` first');
   }
+
+  // When the build splits for Webflow, test the SPLIT — that is what actually
+  // gets pasted. Concatenated here exactly as two adjacent embeds render.
+  const p1 = path.join(ROOT, 'webflow', 'embed-part1.html');
+  const p2 = path.join(ROOT, 'webflow', 'embed-part2.html');
+  const split = fs.existsSync(p1) && fs.existsSync(p2);
   // Neutralise whatever key the local build injected; tests never call Google.
-  const embed = fs
-    .readFileSync(embedPath, 'utf8')
+  const raw = split
+    ? fs.readFileSync(p1, 'utf8') + '\n' + fs.readFileSync(p2, 'utf8')
+    : fs.readFileSync(embedPath, 'utf8');
+  const embed = raw
     .replace(/GOOGLE_MAPS_API_KEY\s*:\s*'[^']*'/, "GOOGLE_MAPS_API_KEY:'TEST'");
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">

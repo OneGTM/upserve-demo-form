@@ -1,13 +1,14 @@
 # Upserve — demo request form (Webflow embed)
 
-Two-step demo request form. Google Places finds the restaurant, a required
-business-type dropdown does the work a CAPTCHA would, and Default's SDK reads
-the finished form straight off the DOM — so Default branches on submitted data
-using the conditional logic it already has.
+Three-step demo request form. It asks who you are before it asks anything
+else, finds the restaurant on Google Places, and posts through Default's SDK
+so Default branches on submitted data with the conditional logic it already
+has.
 
-Default never receives a webhook and never waits on anything mid-workflow. Every
-signal — including the verified flag and the Google place ID — arrives as a plain
-form field.
+The first step is the one that matters most: most of the junk on an inbound
+demo form is not spam, it is people in the wrong place. Diners chasing a
+receipt and existing customers needing support both get answered and sent
+somewhere useful, and neither one creates anything in Default.
 
 ---
 
@@ -26,20 +27,27 @@ form field.
 
 ## Install in Webflow
 
-1. Open the demo-contact page in the Designer.
-2. Drag an **Embed** element where the form should sit.
-3. Paste all of `webflow/embed.html`.
+`node build.js` prints exactly which file(s) to paste. Right now the form is
+past Webflow's 50,000-character cap for a single embed, so it builds as two:
+
+1. Open the demo page in the Designer.
+2. Drag an **Embed** element. Paste all of `webflow/embed-part1.html`. Save.
+3. Drag a **second Embed** directly below it. Paste `webflow/embed-part2.html`.
 4. Save and publish.
 
-That's it. Nothing in Page Settings, no second embed, no external script.
+**Order matters** — part 1 is the styles and markup, part 2 is the script that
+wires them up.
+
+Nothing goes in Page Settings; those fields cap at 20,000 characters. If the
+form ever shrinks back under 50,000 the build emits a single
+`webflow/embed.html` instead and tells you so.
 
 ### Why there's a build step
 
 Webflow caps a Code Embed at
 [50,000 characters](https://help.webflow.com/hc/en-us/articles/33961332238611-Custom-code-embed).
 The readable source is ~86,700 so `build.js` strips comments, collapses
-whitespace, and shortens the `usv-*` class names. Output is **48,981** — it
-fails loudly if an edit ever pushes it over.
+whitespace, and shortens the `usv-*` class names. fails loudly if an edit ever pushes it over.
 
 Nothing is renamed inside the JavaScript, so the logic is still readable in
 devtools. Only the CSS class and ID names are shortened; `embed.names.json`
@@ -170,6 +178,39 @@ Sent as `routing_owner`, so Default branches on a plain string.
 
 ---
 
+## Step 1 — who are you
+
+Three options, and only one of them continues into the form:
+
+| Choice | What happens |
+|---|---|
+| Looking at Upserve for my restaurant | Continues to the finder |
+| I already use Upserve | Support routes. Nothing submitted. |
+| I ate at a restaurant | Explains we are the software, not the restaurant. Nothing submitted. |
+
+Both off-ramps are deliberate dead ends — they answer the question the visitor
+actually had, which is the only thing that stops them filling the form anyway.
+Neither creates a record in Default.
+
+The existing-customer page keeps one door open: **"Actually, I want to add a
+location or upgrade"** continues into the form, tagged
+`visitor_type=current_customer`. Expansion is real pipeline, and trapping it on
+a support page would cost you revenue.
+
+The support routes come from `CFG.SUPPORT`:
+
+```js
+SUPPORT : [
+  ['Help Center',  'https://help.upserve.com',  'Guides and troubleshooting'],
+  ['Sign in',      'https://upserve.com/login', 'Your account and billing'],
+  ['Call support', 'tel:+18556643887',          '(855) 664-3887']
+]
+```
+
+> **Check these before launch.** They are the one thing on the off-ramp that
+> has to be right — a wrong number sends a frustrated customer straight back
+> to this form.
+
 ## What gets sent to Default
 
 Default ingests **everything** — all form input plus everything the lookup
@@ -179,7 +220,11 @@ resolved. Empty fields are dropped, so it never sees blank strings.
 in the field itself), `restaurant_name` (the Google display name when one was
 picked, otherwise what they typed).
 
-**Qualification** — `business_type`, `restaurant_status`, `routing_owner`.
+**Qualification** — `visitor_type` (`prospect` / `current_customer`),
+`business_type`, `restaurant_status`, `routing_owner`.
+
+Only `prospect` and `current_customer` ever reach Default — a diner never
+submits.
 
 **Place (only when someone picks a Google result)** — `place_id`,
 `place_verified`, `place_source`, `place_maps_url`, `place_address`,
@@ -317,7 +362,7 @@ logging can reach the live site.
 ```bash
 npm install
 npx playwright install chromium
-npm test          # builds, then runs 44 checks on desktop + mobile
+npm test          # builds, then runs 56 checks on desktop + mobile
 ```
 
 The suite drives the **built** `webflow/embed.html` — the exact file you paste
@@ -360,11 +405,14 @@ question, the email-typed question carries a value).
 
 ## Funnel tracking
 
-Six events push to GTM's `dataLayer`, so the two-step drop-off is measurable:
+Events push to GTM's `dataLayer`, so drop-off is measurable at every step —
+including how many arrivals were never leads in the first place:
 
 | Event | Fires when |
 |---|---|
-| `usv_form_step1_view` | form renders |
+| `usv_form_step0_view` | form renders |
+| `usv_form_visitor_type` | who they said they are |
+| `usv_form_deflected` | a diner or customer was sent elsewhere |
 | `usv_form_place_selected` | a Google result or "not listed yet" is picked |
 | `usv_form_step2_view` | step 2 reached — the drop-off denominator |
 | `usv_form_submit` | a real submission goes to Default |
@@ -406,10 +454,10 @@ the brand black (`#474747`, `#737373`) rather than off-palette hues.
 - **Mobile viewport.** The layout stacks below 480px, inputs are 16px so iOS
   doesn't zoom on focus, and tap targets measure ~51px. Verified via computed
   styles and the grid rule; worth one pass on a real handset before launch.
-- **Size headroom.** The embed builds to 48,981 of 50,000 characters — about
-  1,000 spare. This is the binding constraint: anything substantial now needs
-  something traded out first. `build.js` and CI both fail rather than letting
-  Webflow truncate silently. This is the binding constraint now: a large new section will need
+- **Size.** The form outgrew a single 50,000-character embed when the triage
+  step landed, so it now builds as two parts (21.8k + 32.7k). Both have room.
+  If it ever needs to be one paste again, hosting the script on a CDN is the
+  way — the repo makes jsDelivr a one-liner. This is the binding constraint now: a large new section will need
   something trimmed first. `build.js` fails loudly rather than letting Webflow
   truncate silently. A large new section may need something trimmed; `build.js` will
   tell you rather than letting Webflow truncate silently.

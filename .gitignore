@@ -4,6 +4,8 @@ config.local.json
 # Build output. Run `node build.js` to regenerate; the embed carries the live
 # API key, so it stays out of history.
 webflow/embed.html
+webflow/embed-part1.html
+webflow/embed-part2.html
 preview.html
 prototype.html
 

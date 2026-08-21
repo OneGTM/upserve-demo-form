@@ -33,27 +33,32 @@ Never commit straight to `main`.
 the next `node build.js` overwrites your changes.
 
 ```
-src/webflow-embed.html   ->  webflow/embed.html    the paste-ready embed
-                         ->  preview.html          local test, readable source
-                         ->  prototype.html        shareable demo, no live calls
+src/webflow-embed.html   ->  webflow/embed-part1.html   styles + markup
+                         ->  webflow/embed-part2.html   logic
+                         ->  preview.html               local test, readable source
+                         ->  prototype.html             shareable demo, no live calls
 ```
 
-Build outputs are gitignored, including `webflow/embed.html`, because it
-carries the live API key. Clone, add the key, build.
+The build splits automatically once the embed passes Webflow's 50,000-character
+cap, and prints which files to paste. Under the cap it emits a single
+`webflow/embed.html` instead.
+
+Build outputs are gitignored because they carry the live API key. Clone, add
+the key, build.
 
 ## Before you ship
 
 ```bash
-node build.js     # must print "ok" — it exits non-zero over 50,000 chars
+npm test          # builds, then 56 checks on desktop + mobile
 ```
 
 Webflow caps a Code Embed at 50,000 characters and **truncates silently** past
 it. That cap is the one thing here that breaks without an error message, so the
 build guards it and CI runs the same check on every PR.
 
-Then open `preview.html` and put a real submission through with `?demo=1`:
-pick a restaurant, trip the honeypot, trigger the typo rescue. There is no
-automated browser test yet — see "Worth doing next" in the README.
+The suite drives the built files in a real browser with Default and Google
+stubbed, so it never touches a live service. For a manual look, open
+`preview.html` with `?demo=1`.
 
 ## Field names are a contract
 
