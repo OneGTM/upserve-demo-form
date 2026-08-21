@@ -226,7 +226,7 @@ test('a malformed address is flagged on blur, before submit', async ({ page }) =
   await pickRestaurant(page, 'Tautog');
   await continueToStep2(page);
   await page.fill('input[name="email"]', 'joe@gmail');   // no TLD
-  await page.locator('input[name="first_name"]').click();  // blur
+  await page.locator('input[name="email"]').blur();
   await expect(page.getByText(/missing something/i)).toBeVisible();
 });
 
@@ -236,7 +236,7 @@ test('a typo is offered a fix, and the submit button is not swallowed',
     await pickRestaurant(page, 'Tautog');
     await continueToStep2(page);
     await fillContact(page, { email: 'jamie@gmial.com.com' });
-    await page.locator('input[name="first_name"]').click();  // blur
+    await page.locator('input[name="email"]').blur();
 
     await expect(page.getByRole('button', { name: /use it/i })).toBeVisible();
     await page.getByRole('button', { name: /use it/i }).click();
@@ -425,7 +425,7 @@ test('a one-letter TLD is rejected', async ({ page }) => {
   await continueToStep2(page);
 
   await page.fill('input[name="email"]', 'joe@gmail.c');
-  await page.locator('input[name="first_name"]').click();
+  await page.locator('input[name="email"]').blur();
   await expect(page.getByText(/missing something/i)).toBeVisible();
 });
 
@@ -435,7 +435,7 @@ test('a legitimate multi-part domain is accepted', async ({ page }) => {
   await continueToStep2(page);
 
   await page.fill('input[name="email"]', 'chef@my-diner.co.uk');
-  await page.locator('input[name="first_name"]').click();
+  await page.locator('input[name="email"]').blur();
   await expect(page.getByText(/missing something/i)).not.toBeVisible();
 });
 
@@ -496,7 +496,7 @@ test('triage will not advance without a choice', async ({ page }) => {
 test('visitor_type reaches Default under a readable label', async ({ page }) => {
   await open(page);                              // prospect
   await pickRestaurant(page, 'Tautog');
-  await clickContinue(page);
+  await continueToStep2(page);
   await fillContact(page);
   await submit(page);
 
@@ -512,7 +512,7 @@ test('visitor_type reaches Default under a readable label', async ({ page }) => 
 async function walkTo(page, visitor, choiceValue) {
   await open(page, visitor);
   await pickRestaurant(page, 'Tautog');
-  await clickContinue(page);
+  await continueToStep2(page);
   await page.locator('input[value="' + choiceValue + '"]').check({ force: true });
   await fillContact(page);
 }
@@ -520,7 +520,7 @@ async function walkTo(page, visitor, choiceValue) {
 test('a customer is asked what they need, not where they are', async ({ page }) => {
   await open(page, 'current_customer');
   await pickRestaurant(page, 'Tautog');
-  await clickContinue(page);
+  await continueToStep2(page);
 
   await expect(page.getByText(/what do you need help with/i).first()).toBeVisible();
   await expect(page.locator('[data-help="add_location"]')).toBeVisible();
@@ -530,7 +530,7 @@ test('a customer is asked what they need, not where they are', async ({ page }) 
 test('a prospect is asked where they are, not what they need', async ({ page }) => {
   await open(page, 'prospect');
   await pickRestaurant(page, 'Tautog');
-  await clickContinue(page);
+  await continueToStep2(page);
 
   await expect(page.getByText(/where are you today/i).first()).toBeVisible();
   await expect(page.locator('[data-status="brand_new_opening"]')).toBeVisible();
@@ -587,7 +587,7 @@ test('the details step will not submit without answering its question',
   async ({ page }) => {
     await open(page, 'current_customer');
     await pickRestaurant(page, 'Tautog');
-    await clickContinue(page);
+    await continueToStep2(page);
     await fillContact(page);
     await submit(page);
 
@@ -599,7 +599,7 @@ test('every contact field is required on both branches', async ({ page }) => {
   for (const visitor of ['prospect', 'current_customer']) {
     await open(page, visitor);
     await pickRestaurant(page, 'Tautog');
-    await clickContinue(page);
+    await continueToStep2(page);
     await page.locator('input[value="' +
       (visitor === 'prospect' ? 'exploring' : 'other') + '"]').check({ force: true });
     await submit(page);

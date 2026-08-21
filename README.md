@@ -27,12 +27,21 @@ somewhere useful, and neither one creates anything in Default.
 
 ## Install in Webflow
 
+```bash
+npm run copy      # builds, then puts webflow/embed.html on your clipboard
+```
+
 1. Open the demo page in the Designer.
 2. Drag an **Embed** element where the form should sit.
-3. Paste all of `webflow/embed.html`.
+3. Paste (the clipboard already holds `webflow/embed.html`).
 4. Save and publish.
 
 One paste. Nothing in Page Settings, no second embed, no external script.
+
+> **Paste `webflow/embed.html`, never `src/webflow-embed.html`.** The source is
+> ~95,000 characters — mostly comments — and Webflow will reject it at 50,000.
+> The build strips all 21,000 characters of comments; they cost nothing in the
+> embed, which is why the source stays heavily documented.
 
 `node build.js` prints exactly what to paste and only writes files that are
 actually pasteable, so an oversized file can never sit there waiting to be

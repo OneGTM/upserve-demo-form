@@ -6,7 +6,8 @@
   "scripts": {
     "build": "node build.js",
     "test": "node build.js && playwright test",
-    "test:headed": "node build.js && playwright test --headed"
+    "test:headed": "node build.js && playwright test --headed",
+    "copy": "node build.js && pbcopy < webflow/embed.html && node -e \"console.log('\\nCopied webflow/embed.html to the clipboard — paste it into the Webflow Embed element.')\""
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
