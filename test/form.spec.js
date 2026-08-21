@@ -65,10 +65,6 @@ async function pickRestaurant(page, query) {
   return label;
 }
 
-async function chooseType(page, value = 'Full-service restaurant') {
-  await page.selectOption('select[name="business_type"]', value);
-}
-
 async function continueToStep2(page) {
   await clickContinue(page);
   await expect(page.locator('input[name="first_name"]')).toBeVisible();
@@ -94,7 +90,6 @@ test('picking a Google result carries the place through to Default', async ({ pa
   const picked = await pickRestaurant(page, 'Tautog');
   expect(picked).toBe('Tautog Tavern');
 
-  await chooseType(page);
   await continueToStep2(page);
   await fillContact(page);
   await submit(page);
@@ -124,7 +119,6 @@ test('"not listed yet" routes to a brand-new opening', async ({ page }) => {
 
   await expect(page.locator('input[value="brand_new_opening"]')).toBeChecked();
 
-  await chooseType(page);
   await continueToStep2(page);
   await fillContact(page, { email: 'chef@brandnew.com' });
   await submit(page);
@@ -142,7 +136,6 @@ test('a permanently closed listing is treated as a new opening, not a POS swap',
     await pickRestaurant(page, 'Old Anchor');
     await expect(page.locator('input[value="brand_new_opening"]')).toBeChecked();
 
-    await chooseType(page);
     await continueToStep2(page);
     await fillContact(page, { email: 'new@owner.com' });
     await submit(page);
@@ -158,7 +151,6 @@ test('a permanently closed listing is treated as a new opening, not a POS swap',
 test('"just exploring" routes to SDR, everything else to AE', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Tautog');
-  await chooseType(page);
   await continueToStep2(page);
   await page.locator('[data-status="exploring"]').click();
   await fillContact(page);
@@ -173,7 +165,6 @@ test('"just exploring" routes to SDR, everything else to AE', async ({ page }) =
 test('honeypot blocks the submission and Default is never called', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Tautog');
-  await chooseType(page);
   await continueToStep2(page);
   await fillContact(page);
 
@@ -215,7 +206,6 @@ test('submitting under the speed floor blocks, and Default is never called',
     await page.locator('[role="option"]').first().click();
     await page.clock.runFor(200);                 // place details
 
-    await page.selectOption('select[name="business_type"]', 'Full-service restaurant');
     await clickContinue(page);
     await fillContact(page);
     await page.clock.runFor(400);
@@ -234,7 +224,6 @@ test('submitting under the speed floor blocks, and Default is never called',
 test('a malformed address is flagged on blur, before submit', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Tautog');
-  await chooseType(page);
   await continueToStep2(page);
   await page.fill('input[name="email"]', 'joe@gmail');   // no TLD
   await page.locator('input[name="first_name"]').click();  // blur
@@ -245,7 +234,6 @@ test('a typo is offered a fix, and the submit button is not swallowed',
   async ({ page }) => {
     await open(page);
     await pickRestaurant(page, 'Tautog');
-    await chooseType(page);
     await continueToStep2(page);
     await fillContact(page, { email: 'jamie@gmial.com.com' });
     await page.locator('input[name="first_name"]').click();  // blur
@@ -262,7 +250,6 @@ test('a typo is offered a fix, and the submit button is not swallowed',
 test('a free inbox is welcomed and labelled, never blocked', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Just Wing It');
-  await chooseType(page, 'Quick service / fast casual');
   await continueToStep2(page);
   await fillContact(page, { email: 'marcus@yahoo.com', phone: '9175551234' });
   await submit(page);
@@ -276,7 +263,6 @@ test('a free inbox is welcomed and labelled, never blocked', async ({ page }) =>
 test('an email on the restaurant domain is the strongest match', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Tautog');
-  await chooseType(page);
   await continueToStep2(page);
   await fillContact(page, { email: 'jamie@tautogtavern.com', phone: '4018492900' });
   await submit(page);
@@ -290,21 +276,10 @@ test('an email on the restaurant domain is the strongest match', async ({ page }
 
 /* ── validation ──────────────────────────────────────────────────────────── */
 
-test('step 1 will not advance without a business type', async ({ page }) => {
-  await open(page);
-  await pickRestaurant(page, 'Tautog');
-  await clickContinue(page);
-  await expect(page.locator('input[name="first_name"]')).toHaveCount(1);
-  await expect(page.locator('input[name="first_name"]')).not.toBeVisible();
-});
-
-/* ── what Default sees ───────────────────────────────────────────────────── */
-
 test('every field arrives under a readable label, never a raw slug',
   async ({ page }) => {
     await open(page);
     await pickRestaurant(page, 'Tautog');
-    await chooseType(page);
     await continueToStep2(page);
     await fillContact(page);
     await submit(page);
@@ -326,7 +301,6 @@ test('every field arrives under a readable label, never a raw slug',
 test('the honeypot fields never reach Default', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Tautog');
-  await chooseType(page);
   await continueToStep2(page);
   await fillContact(page);
   await submit(page);
@@ -352,7 +326,6 @@ test('UTM and gclid ride along with the lead', async ({ page }) => {
   await clickContinue(page);
 
   await pickRestaurant(page, 'Tautog');
-  await chooseType(page);
   await continueToStep2(page);
   await fillContact(page);
   await submit(page);
@@ -369,7 +342,6 @@ test('UTM and gclid ride along with the lead', async ({ page }) => {
 test('the funnel fires in order and survives a missing dataLayer', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Tautog');
-  await chooseType(page);
   await continueToStep2(page);
   await fillContact(page);
   await submit(page);
@@ -395,7 +367,6 @@ test('tracking cannot break a submission even if dataLayer is hostile',
     });
     await open(page);
     await pickRestaurant(page, 'Tautog');
-    await chooseType(page);
     await continueToStep2(page);
     await fillContact(page);
     await submit(page);
@@ -421,7 +392,6 @@ test('with Google unavailable the field still works and still submits',
     await notListed.waitFor({ state: 'visible' });
     await notListed.click();
 
-    await chooseType(page);
     await continueToStep2(page);
     await fillContact(page, { email: 'owner@somediner.com' });
     await submit(page);
@@ -438,7 +408,6 @@ test('an incomplete phone number is flagged at the field, not after submit',
   async ({ page }) => {
     await open(page);
     await pickRestaurant(page, 'Tautog');
-    await chooseType(page);
     await continueToStep2(page);
 
     await page.fill('input[name="phone"]', '401849');        // too short
@@ -453,7 +422,6 @@ test('an incomplete phone number is flagged at the field, not after submit',
 test('a one-letter TLD is rejected', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Tautog');
-  await chooseType(page);
   await continueToStep2(page);
 
   await page.fill('input[name="email"]', 'joe@gmail.c');
@@ -464,7 +432,6 @@ test('a one-letter TLD is rejected', async ({ page }) => {
 test('a legitimate multi-part domain is accepted', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Tautog');
-  await chooseType(page);
   await continueToStep2(page);
 
   await page.fill('input[name="email"]', 'chef@my-diner.co.uk');
@@ -476,7 +443,6 @@ test('each status option carries only its title, not the description too',
   async ({ page }) => {
     await open(page);
     await pickRestaurant(page, 'Tautog');
-    await chooseType(page);
     await continueToStep2(page);
     await fillContact(page);
     await submit(page);
@@ -493,7 +459,6 @@ test('each status option carries only its title, not the description too',
 test('clicking the description still selects the card', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Tautog');
-  await chooseType(page);
   await continueToStep2(page);
   // y=42 lands on the description row, not the title
   await page.locator('[data-status="exploring"]').click({ position: { x: 120, y: 42 } });
@@ -521,37 +486,6 @@ test('a diner can back out if they picked wrong', async ({ page }) => {
   await expect(page.getByText(/who are you|who are/i).first()).toBeVisible();
 });
 
-test('an existing customer gets support routes, not a demo form', async ({ page }) => {
-  await open(page, null);
-  await page.locator('input[value="current_customer"]').check({ force: true });
-  await clickContinue(page);
-
-  await expect(page.getByText(/faster here/i)).toBeVisible();
-  await expect(page.getByRole('link', { name: /help center/i })).toBeVisible();
-  await expect(page.getByRole('link', { name: /sign in/i })).toBeVisible();
-  await expect(page.locator('[role="combobox"]')).not.toBeVisible();
-  expect(await submissions(page)).toHaveLength(0);
-});
-
-test('an existing customer with an expansion question can still get through',
-  async ({ page }) => {
-    await open(page, null);
-    await page.locator('input[value="current_customer"]').check({ force: true });
-    await clickContinue(page);
-    await page.getByRole('button', { name: /add a location or upgrade/i }).click();
-
-    await expect(page.locator('[role="combobox"]')).toBeVisible();
-
-    await pickRestaurant(page, 'Tautog');
-    await chooseType(page);
-    await clickContinue(page);
-    await fillContact(page);
-    await submit(page);
-
-    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
-    expect((await submissions(page))[0].fields.visitor_type).toBe('current_customer');
-  });
-
 test('triage will not advance without a choice', async ({ page }) => {
   await open(page, null);
   await clickContinue(page);
@@ -562,7 +496,6 @@ test('triage will not advance without a choice', async ({ page }) => {
 test('visitor_type reaches Default under a readable label', async ({ page }) => {
   await open(page);                              // prospect
   await pickRestaurant(page, 'Tautog');
-  await chooseType(page);
   await clickContinue(page);
   await fillContact(page);
   await submit(page);
@@ -571,4 +504,106 @@ test('visitor_type reaches Default under a readable label', async ({ page }) => 
   const { fields, labels } = (await submissions(page))[0];
   expect(fields.visitor_type).toBe('prospect');
   expect(labels.visitor_type).toBe('Who they are');
+});
+
+/* ── branching: one form, two questionnaires ─────────────────────────────── */
+
+/** Walk a branch to the details step and answer its question. */
+async function walkTo(page, visitor, choiceValue) {
+  await open(page, visitor);
+  await pickRestaurant(page, 'Tautog');
+  await clickContinue(page);
+  await page.locator('input[value="' + choiceValue + '"]').check({ force: true });
+  await fillContact(page);
+}
+
+test('a customer is asked what they need, not where they are', async ({ page }) => {
+  await open(page, 'current_customer');
+  await pickRestaurant(page, 'Tautog');
+  await clickContinue(page);
+
+  await expect(page.getByText(/what do you need help with/i).first()).toBeVisible();
+  await expect(page.locator('[data-help="add_location"]')).toBeVisible();
+  await expect(page.locator('[data-status="brand_new_opening"]')).not.toBeVisible();
+});
+
+test('a prospect is asked where they are, not what they need', async ({ page }) => {
+  await open(page, 'prospect');
+  await pickRestaurant(page, 'Tautog');
+  await clickContinue(page);
+
+  await expect(page.getByText(/where are you today/i).first()).toBeVisible();
+  await expect(page.locator('[data-status="brand_new_opening"]')).toBeVisible();
+  await expect(page.locator('[data-help="add_location"]')).not.toBeVisible();
+});
+
+for (const [choice, owner] of [['add_location', 'AM'], ['expand_location', 'AM']]) {
+  test('a customer choosing ' + choice + ' routes to ' + owner, async ({ page }) => {
+    await walkTo(page, 'current_customer', choice);
+    await submit(page);
+
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    const { fields } = (await submissions(page))[0];
+    expect(fields.routing_owner).toBe(owner);
+    expect(fields.help_topic).toBe(choice);
+    expect(fields.visitor_type).toBe('current_customer');
+    // the question that was never asked must not travel with the lead
+    expect(fields).not.toHaveProperty('restaurant_status');
+  });
+}
+
+for (const choice of ['product_help', 'account_billing', 'other']) {
+  test('a customer choosing ' + choice + ' is tagged SUPPORT and shown where to go',
+    async ({ page }) => {
+      await walkTo(page, 'current_customer', choice);
+      await submit(page);
+
+      await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+      const { fields } = (await submissions(page))[0];
+      expect(fields.routing_owner).toBe('SUPPORT');
+      expect(fields.help_topic).toBe(choice);
+
+      // captured, but pointed at support rather than a scheduler
+      await expect(page.getByText(/support will follow up/i)).toBeVisible();
+      await expect(page.getByRole('link', { name: /help center/i })).toBeVisible();
+    });
+}
+
+for (const [status, owner] of [['brand_new_opening', 'AE'], ['replacing_pos', 'AE'],
+                               ['exploring', 'SDR']]) {
+  test('a prospect choosing ' + status + ' routes to ' + owner, async ({ page }) => {
+    await walkTo(page, 'prospect', status);
+    await submit(page);
+
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    const { fields } = (await submissions(page))[0];
+    expect(fields.routing_owner).toBe(owner);
+    expect(fields.restaurant_status).toBe(status);
+    expect(fields).not.toHaveProperty('help_topic');
+  });
+}
+
+test('the details step will not submit without answering its question',
+  async ({ page }) => {
+    await open(page, 'current_customer');
+    await pickRestaurant(page, 'Tautog');
+    await clickContinue(page);
+    await fillContact(page);
+    await submit(page);
+
+    expect(await submissions(page)).toHaveLength(0);
+    await expect(page.getByText(/let us know what you need/i)).toBeVisible();
+  });
+
+test('every contact field is required on both branches', async ({ page }) => {
+  for (const visitor of ['prospect', 'current_customer']) {
+    await open(page, visitor);
+    await pickRestaurant(page, 'Tautog');
+    await clickContinue(page);
+    await page.locator('input[value="' +
+      (visitor === 'prospect' ? 'exploring' : 'other') + '"]').check({ force: true });
+    await submit(page);
+    expect(await submissions(page), visitor + ' submitted with empty contact fields')
+      .toHaveLength(0);
+  }
 });

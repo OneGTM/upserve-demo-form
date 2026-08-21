@@ -178,26 +178,48 @@ Sent as `routing_owner`, so Default branches on a plain string.
 
 ---
 
-## Step 1 — who are you
+## The questionnaire
 
-Three options, and only one of them continues into the form:
+One form, two branches. Step 1 decides which.
 
-| Choice | What happens |
+| Who they are | Then |
 |---|---|
-| Looking at Upserve for my restaurant | Continues to the finder |
-| I already use Upserve | Support routes. Nothing submitted. |
-| I ate at a restaurant | Explains we are the software, not the restaurant. Nothing submitted. |
+| New or returning | Restaurant finder → **restaurant status** → contact |
+| Already a customer | Restaurant finder → **what they need help with** → contact |
+| Ate at a restaurant | Answered and stopped. Nothing submitted. |
 
-Both off-ramps are deliberate dead ends — they answer the question the visitor
-actually had, which is the only thing that stops them filling the form anyway.
-Neither creates a record in Default.
+All fields are required on both branches: first name, last name, email,
+mobile phone, restaurant name, and the branch question.
 
-The existing-customer page keeps one door open: **"Actually, I want to add a
-location or upgrade"** continues into the form, tagged
-`visitor_type=current_customer`. Expansion is real pipeline, and trapping it on
-a support page would cost you revenue.
+### Routing
 
-The support routes come from `CFG.SUPPORT`:
+| Branch | Answer | `routing_owner` |
+|---|---|---|
+| Prospect | Brand-new opening | `AE` |
+| Prospect | Replacing current POS | `AE` |
+| Prospect | Exploring / not sure | `SDR` |
+| Customer | Add a new location | `AM` |
+| Customer | Expand an existing location | `AM` |
+| Customer | Product help | `SUPPORT` |
+| Customer | Account or billing | `SUPPORT` |
+| Customer | Something else | `SUPPORT` |
+
+The question that was **not** asked never reaches Default — a prospect never
+sends `help_topic`, a customer never sends `restaurant_status`. An empty field
+reads as missing data; an absent one reads as not applicable.
+
+### The SUPPORT outcome
+
+A support-shaped request is still **captured** — they have handed over their
+details and a real customer needs answering — but it is tagged
+`routing_owner=SUPPORT` so Default keeps it out of a sales queue, and the
+visitor is shown support routes instead of a scheduler that would never open
+for them.
+
+If you would rather these never reach Default at all, the change is one branch
+in the submit gate.
+
+Support routes come from `CFG.SUPPORT`:
 
 ```js
 SUPPORT : [
@@ -207,9 +229,18 @@ SUPPORT : [
 ]
 ```
 
-> **Check these before launch.** They are the one thing on the off-ramp that
-> has to be right — a wrong number sends a frustrated customer straight back
-> to this form.
+> **Check these before launch.** A wrong number sends a frustrated customer
+> straight back to this form.
+
+### A note on what was removed
+
+The old "what kind of business is it?" dropdown is gone — it is not in the
+agreed field list. It had been doing double duty as an accidental-submission
+filter, since a required dropdown with no "Other" is the one field autofill
+cannot guess. That role is now covered by the triage step and the branch
+question, which are both required and both demand a real decision. The
+qualification signal it carried (full-service vs quick-service vs bar) is the
+real loss; `place_category` from Google partly replaces it.
 
 ## What gets sent to Default
 
@@ -220,11 +251,11 @@ resolved. Empty fields are dropped, so it never sees blank strings.
 in the field itself), `restaurant_name` (the Google display name when one was
 picked, otherwise what they typed).
 
-**Qualification** — `visitor_type` (`prospect` / `current_customer`),
-`business_type`, `restaurant_status`, `routing_owner`.
+**Qualification** — `visitor_type` (`prospect` / `current_customer`), plus
+either `restaurant_status` or `help_topic` depending on the branch, and
+`routing_owner`.
 
-Only `prospect` and `current_customer` ever reach Default — a diner never
-submits.
+A diner never submits.
 
 **Place (only when someone picks a Google result)** — `place_id`,
 `place_verified`, `place_source`, `place_maps_url`, `place_address`,
@@ -362,7 +393,7 @@ logging can reach the live site.
 ```bash
 npm install
 npx playwright install chromium
-npm test          # builds, then runs 56 checks on desktop + mobile
+npm test          # builds, then runs 74 checks on desktop + mobile
 ```
 
 The suite drives the **built** `webflow/embed.html` — the exact file you paste
@@ -412,14 +443,13 @@ including how many arrivals were never leads in the first place:
 |---|---|
 | `usv_form_step0_view` | form renders |
 | `usv_form_visitor_type` | who they said they are |
-| `usv_form_deflected` | a diner or customer was sent elsewhere |
+| `usv_form_deflected` | a diner was answered and stopped |
 | `usv_form_place_selected` | a Google result or "not listed yet" is picked |
 | `usv_form_step2_view` | step 2 reached — the drop-off denominator |
 | `usv_form_submit` | a real submission goes to Default |
 | `usv_form_blocked` | a trap fired (spam volume, without polluting Default) |
 
-`submit` carries `place_source`, `place_verified`, `routing_owner` and
-`business_type`.
+`submit` carries `place_source`, `place_verified` and `routing_owner`.
 
 The whole thing is wrapped in try/catch and creates `dataLayer` if GTM has not
 yet — **analytics can never break a submission**. A test proves it by rigging
@@ -454,10 +484,9 @@ the brand black (`#474747`, `#737373`) rather than off-palette hues.
 - **Mobile viewport.** The layout stacks below 480px, inputs are 16px so iOS
   doesn't zoom on focus, and tap targets measure ~51px. Verified via computed
   styles and the grid rule; worth one pass on a real handset before launch.
-- **Size.** The form outgrew a single 50,000-character embed when the triage
-  step landed, so it now builds as two parts (21.8k + 32.7k). Both have room.
-  If it ever needs to be one paste again, hosting the script on a CDN is the
-  way — the repo makes jsDelivr a one-liner. This is the binding constraint now: a large new section will need
+- **Size.** Two embeds: part 1 is 22.7k, part 2 is 33.8k, both well inside the
+  50,000 cap. `build.js` collapses back to a single `embed.html` if the form
+  ever fits again. This is the binding constraint now: a large new section will need
   something trimmed first. `build.js` fails loudly rather than letting Webflow
   truncate silently. A large new section may need something trimmed; `build.js` will
   tell you rather than letting Webflow truncate silently.

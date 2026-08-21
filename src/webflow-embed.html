@@ -137,8 +137,7 @@
 #usv-demo label.usv-label .usv-req{color:var(--usv-yellow);margin-left:3px;
   -webkit-text-stroke:.4px var(--usv-ink-3);}
 
-#usv-demo .usv-input,
-#usv-demo .usv-select{
+#usv-demo .usv-input{
   width:100%;
   font-family:var(--usv-sans);
   font-size:16px;           /* 16px = no iOS zoom-on-focus */
@@ -153,17 +152,11 @@
   transition:border-color .15s ease,box-shadow .15s ease,background-color .15s ease;
 }
 #usv-demo .usv-input::placeholder{color:#a8a29a;}
-#usv-demo .usv-input:hover,#usv-demo .usv-select:hover{border-color:#c3bcb2;}
-#usv-demo .usv-input:focus,#usv-demo .usv-select:focus{
+#usv-demo .usv-input:hover{border-color:#c3bcb2;}
+#usv-demo .usv-input:focus{
   border-color:var(--usv-ink);
   box-shadow:0 0 0 3px rgba(255,205,4,.42);
 }
-#usv-demo .usv-select{
-  padding-right:40px;cursor:pointer;
-  background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' fill='none' stroke='%23141312' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat;background-position:right 14px center;
-}
-#usv-demo .usv-select:invalid,#usv-demo .usv-select.usv-placeheld{color:#a8a29a;}
 
 #usv-demo .usv-help{
   font-size:13px;line-height:1.45;color:var(--usv-ink-3);
@@ -176,7 +169,6 @@
 }
 #usv-demo .usv-field.is-invalid .usv-err{display:block;}
 #usv-demo .usv-field.is-invalid .usv-input,
-#usv-demo .usv-field.is-invalid .usv-select,
 #usv-demo .usv-field.is-invalid .usv-combo-input{
   border-color:var(--usv-error);
 }
@@ -469,7 +461,7 @@
                        aria-describedby="usv-vd-pro">
                 <label class="usv-card-hit" for="usv-v-pro">
                   <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">I&rsquo;m looking at Upserve for my restaurant</span>
+                  <span class="usv-card-t">I&rsquo;m new to Upserve, or coming back</span>
                 </label>
                 <span class="usv-card-d" id="usv-vd-pro">Exploring, comparing, or ready to switch</span>
               </div>
@@ -479,9 +471,9 @@
                        aria-describedby="usv-vd-cur">
                 <label class="usv-card-hit" for="usv-v-cur">
                   <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">I already use Upserve</span>
+                  <span class="usv-card-t">I&rsquo;m already an Upserve customer</span>
                 </label>
-                <span class="usv-card-d" id="usv-vd-cur">I need help with my account or my system</span>
+                <span class="usv-card-d" id="usv-vd-cur">I need help, another location, or an upgrade</span>
               </div>
 
               <div class="usv-card-opt" data-visitor="diner">
@@ -536,25 +528,6 @@
             <p class="usv-err" id="usv-name-err">Tell us your restaurant or business name.</p>
           </div>
 
-          <!--
-            The type dropdown is the real CAPTCHA. No "Other" on purpose:
-            a non-restaurant has nothing honest to pick, and autofill can't
-            guess it, so accidental and scripted fills stop here.
-          -->
-          <div class="usv-field" id="usv-f-type">
-            <label class="usv-label" for="usv-type">What kind of business is it?<span class="usv-req">*</span></label>
-            <select class="usv-select usv-placeheld" id="usv-type" name="business_type" required>
-              <option value="" disabled selected>Select&hellip;</option>
-              <option value="Full-service restaurant">Full-service restaurant</option>
-              <option value="Quick service / fast casual">Quick service / fast casual</option>
-              <option value="Bar, brewery or nightclub">Bar, brewery or nightclub</option>
-              <option value="Cafe, coffee shop or bakery">Cafe, coffee shop or bakery</option>
-              <option value="Food truck or ghost kitchen">Food truck or ghost kitchen</option>
-              <option value="Hotel or resort food &amp; beverage">Hotel or resort food &amp; beverage</option>
-              <option value="Multi-unit restaurant group">Multi-unit restaurant group</option>
-            </select>
-            <p class="usv-err" id="usv-type-err">Pick the option that fits best.</p>
-          </div>
 
           <div class="usv-actions">
             <button type="button" class="usv-btn" id="usv-next">
@@ -587,7 +560,7 @@
           </div>
 
           <h2 class="usv-h" id="usv-h2">Where are you <em>today</em>?</h2>
-          <p class="usv-sub">This decides who you talk to &mdash; and how fast.</p>
+          <p class="usv-sub" id="usv-sub2">This decides who you talk to &mdash; and how fast.</p>
 
           <div class="usv-field" id="usv-f-status">
             <fieldset class="usv-cards">
@@ -624,6 +597,66 @@
               </div>
             </fieldset>
             <p class="usv-err" id="usv-status-err">Pick the one that sounds like you.</p>
+          </div>
+
+          <!-- The customer branch asks a different question in the same slot.
+               Only one of these is ever visible, and only the visible one is
+               validated or submitted. -->
+          <div class="usv-field" id="usv-f-help" hidden>
+            <fieldset class="usv-cards">
+              <legend class="usv-sr">What do you need help with</legend>
+
+              <div class="usv-card-opt" data-help="add_location">
+                <input type="radio" id="usv-hp-add" name="help_topic" value="add_location"
+                       aria-describedby="usv-hd-add">
+                <label class="usv-card-hit" for="usv-hp-add">
+                  <span class="usv-mark" aria-hidden="true"></span>
+                  <span class="usv-card-t">Add a new location</span>
+                </label>
+                <span class="usv-card-d" id="usv-hd-add">Opening somewhere new</span>
+              </div>
+
+              <div class="usv-card-opt" data-help="expand_location">
+                <input type="radio" id="usv-hp-exp" name="help_topic" value="expand_location"
+                       aria-describedby="usv-hd-exp">
+                <label class="usv-card-hit" for="usv-hp-exp">
+                  <span class="usv-mark" aria-hidden="true"></span>
+                  <span class="usv-card-t">Expand an existing location</span>
+                </label>
+                <span class="usv-card-d" id="usv-hd-exp">More terminals, more features, more seats</span>
+              </div>
+
+              <div class="usv-card-opt" data-help="product_help">
+                <input type="radio" id="usv-hp-prd" name="help_topic" value="product_help"
+                       aria-describedby="usv-hd-prd">
+                <label class="usv-card-hit" for="usv-hp-prd">
+                  <span class="usv-mark" aria-hidden="true"></span>
+                  <span class="usv-card-t">Product help</span>
+                </label>
+                <span class="usv-card-d" id="usv-hd-prd">Something isn&rsquo;t working the way it should</span>
+              </div>
+
+              <div class="usv-card-opt" data-help="account_billing">
+                <input type="radio" id="usv-hp-bil" name="help_topic" value="account_billing"
+                       aria-describedby="usv-hd-bil">
+                <label class="usv-card-hit" for="usv-hp-bil">
+                  <span class="usv-mark" aria-hidden="true"></span>
+                  <span class="usv-card-t">Account or billing</span>
+                </label>
+                <span class="usv-card-d" id="usv-hd-bil">Invoices, payments, or your plan</span>
+              </div>
+
+              <div class="usv-card-opt" data-help="other">
+                <input type="radio" id="usv-hp-oth" name="help_topic" value="other"
+                       aria-describedby="usv-hd-oth">
+                <label class="usv-card-hit" for="usv-hp-oth">
+                  <span class="usv-mark" aria-hidden="true"></span>
+                  <span class="usv-card-t">Something else</span>
+                </label>
+                <span class="usv-card-d" id="usv-hd-oth">We&rsquo;ll point you the right way</span>
+              </div>
+            </fieldset>
+            <p class="usv-err" id="usv-help-err">Let us know what you need.</p>
           </div>
 
           <div class="usv-row">
@@ -684,16 +717,11 @@
            the question the visitor actually had, which is the only thing that
            stops them filling the form anyway. -->
       <section class="usv-panel" id="usv-out-cust" aria-live="polite" hidden>
-        <p class="usv-eyebrow">Support</p>
-        <h2 class="usv-h">You&rsquo;ll get help <em>faster</em> here.</h2>
-        <p class="usv-sub">This form reaches our sales team, who can&rsquo;t see your
+        <p class="usv-eyebrow" id="usv-cust-eyebrow">Support</p>
+        <h2 class="usv-h" id="usv-cust-h">You&rsquo;ll get help <em>faster</em> here.</h2>
+        <p class="usv-sub" id="usv-cust-sub">This form reaches our sales team, who can&rsquo;t see your
           account. Support can.</p>
         <ul class="usv-links" id="usv-cust-links"></ul>
-        <div class="usv-actions">
-          <button type="button" class="usv-btn usv-btn-ghost" id="usv-cust-back">
-            Actually, I want to add a location or upgrade &rarr;
-          </button>
-        </div>
       </section>
 
       <section class="usv-panel" id="usv-out-diner" aria-live="polite" hidden>
@@ -835,11 +863,24 @@
     DEBOUNCE_MS        : 180,
     MAX_SUGGESTIONS    : 5,
 
-    /* Restaurant status -> who owns the meeting */
+    /* Who owns the outcome. Two maps because the two branches ask different
+       questions — a prospect's timeline, or a customer's need.
+
+       AE / SDR / AM all mean "book a meeting". SUPPORT means the opposite:
+       the visitor is shown support routes instead, and the submission is
+       tagged so Default never drops it in a sales queue. */
     ROUTING : {
       brand_new_opening : 'AE',
       replacing_pos     : 'AE',
       exploring         : 'SDR'
+    },
+
+    ROUTING_HELP : {
+      add_location     : 'AM',
+      expand_location  : 'AM',
+      product_help     : 'SUPPORT',
+      account_billing  : 'SUPPORT',
+      other            : 'SUPPORT'
     }
   };
 
@@ -884,6 +925,7 @@
     typoDismissed: false,
     placesReady  : false,
     cbRegistered : false,
+    routing      : '',
     demo         : false
   };
 
@@ -1354,11 +1396,6 @@
   /* =========================================================================
      Business type
      ========================================================================= */
-  var typeSel = $('usv-type');
-  on(typeSel, 'change', function () {
-    typeSel.classList.toggle('usv-placeheld', !typeSel.value);
-    if (typeSel.value) clearErr($('usv-f-type'));
-  });
 
   /* =========================================================================
      Status cards
@@ -1616,8 +1653,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     if (name.length < 2) { setErr($('usv-f-name'), 'Tell us your restaurant or business name.'); ok = false; }
     else clearErr($('usv-f-name'));
 
-    if (!typeSel.value) { setErr($('usv-f-type')); ok = false; }
-    else clearErr($('usv-f-type'));
 
     return ok;
   }
@@ -1625,8 +1660,15 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   function validateStep2() {
     var ok = true;
 
-    var status = root.querySelector('input[name="restaurant_status"]:checked');
-    if (!status) { setErr($('usv-f-status')); ok = false; } else clearErr($('usv-f-status'));
+    if (isCustomer()) {
+      if (!root.querySelector('input[name="help_topic"]:checked')) {
+        setErr($('usv-f-help')); ok = false;
+      } else clearErr($('usv-f-help'));
+    } else {
+      if (!root.querySelector('input[name="restaurant_status"]:checked')) {
+        setErr($('usv-f-status')); ok = false;
+      } else clearErr($('usv-f-status'));
+    }
 
     if ($('usv-first').value.trim().length < 1) { setErr($('usv-f-first')); ok = false; }
     else clearErr($('usv-f-first'));
@@ -1712,11 +1754,13 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
 
   /* An off-ramp is a dead end on purpose: nothing is submitted, nothing is
      created, and the visitor gets the answer they actually came for. */
+  /* A diner has nothing to submit and nothing to book. The page answers the
+     question they actually had and stops there. */
   function showOffRamp(kind) {
     S.step = 0;
     track('deflected', { visitor_type: kind });
-    if (kind === 'diner') { showPanel(outDiner); say('This looks like a question for the restaurant.'); }
-    else { showPanel(outCust); say('Support can help with this faster.'); }
+    showPanel(outDiner);
+    say('This looks like a question for the restaurant.');
   }
 
   function goStep(n) {
@@ -1732,6 +1776,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       window.setTimeout(function () { nameInput.focus(); }, 40);
     } else {
       paintPlaceChip();
+      paintBranch();
       track('step2_view', { place_source: S.match, place_verified: String(S.verified) });
       showPanel(step2);
       $('usv-dot3').classList.add('is-on');
@@ -1749,6 +1794,28 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     } catch (e) { /* no-op */ }
   }
 
+  var helpInputs = root.querySelectorAll('input[name="help_topic"]');
+  for (var hi = 0; hi < helpInputs.length; hi++) {
+    on(helpInputs[hi], 'change', function () {
+      paintStatus();
+      clearErr($('usv-f-help'));
+    });
+  }
+
+  function isCustomer() { return S.visitor === 'current_customer'; }
+
+  /* One details step, two questions. A prospect is asked about their timeline;
+     a customer is asked what they need. Only the visible one is validated, and
+     only the visible one reaches Default. */
+  function paintBranch() {
+    var c = isCustomer();
+    $('usv-f-status').hidden = c;
+    $('usv-f-help').hidden = !c;
+    txt($('usv-h2'), c ? 'What do you need help with?' : 'Where are you today?');
+    txt($('usv-sub2'), c ? 'This decides who picks it up.'
+                         : 'This decides who you talk to \u2014 and how fast.');
+  }
+
   var visitorInputs = root.querySelectorAll('input[name="visitor_type"]');
   for (var vi = 0; vi < visitorInputs.length; vi++) {
     on(visitorInputs[vi], 'change', function () {
@@ -1763,13 +1830,11 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     S.visitor = picked.value;
     track('visitor_type', { visitor_type: S.visitor });
 
-    if (S.visitor === 'prospect') { S.step = 1; goStep(1); return; }
-    showOffRamp(S.visitor);
+    if (S.visitor === 'diner') { showOffRamp('diner'); return; }
+    S.step = 1;
+    goStep(1);
   });
 
-  /* An existing customer with an expansion question is a real opportunity —
-     let them through rather than trapping them on the support page. */
-  on($('usv-cust-back'), 'click', function () { S.step = 1; goStep(1); });
   on($('usv-diner-back'), 'click', function () { S.step = 0; showPanel(step0); });
 
   on($('usv-next'), 'click', function () { goStep(2); });
@@ -1887,6 +1952,8 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     var place  = S.place;
     var status = root.querySelector('input[name="restaurant_status"]:checked');
     var statusVal = status ? status.value : '';
+    var help = root.querySelector('input[name="help_topic"]:checked');
+    var helpVal = help ? help.value : '';
     var email  = emailInput.value.trim();
     var domain = email.slice(email.lastIndexOf('@') + 1).toLowerCase();
 
@@ -1897,7 +1964,10 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
 
     var v = {};
     v.visitor_type   = S.visitor || 'prospect';
-    v.routing_owner  = CFG.ROUTING[statusVal] || 'SDR';
+    v.routing_owner  = isCustomer()
+      ? (CFG.ROUTING_HELP[helpVal] || 'SUPPORT')
+      : (CFG.ROUTING[statusVal] || 'SDR');
+    S.routing = v.routing_owner;
 
     v.place_id       = place && place.id ? String(place.id) : '';
     v.place_verified = S.verified ? 'true' : 'false';
@@ -1959,6 +2029,12 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     var vis = root.querySelectorAll('input[name="visitor_type"]'), vn;
     for (vn = 0; vn < vis.length; vn++) vis[vn].removeAttribute('name');
 
+    /* Whichever question was not asked must not reach Default at all —
+       an empty restaurant_status on an AM lead reads as missing data. */
+    var unused = root.querySelectorAll(isCustomer()
+      ? 'input[name="restaurant_status"]' : 'input[name="help_topic"]'), un;
+    for (un = 0; un < unused.length; un++) unused[un].removeAttribute('name');
+
     var hp = form.querySelectorAll('.usv-hp input'), h;
     for (h = 0; h < hp.length; h++) hp[h].removeAttribute('name');
 
@@ -2005,6 +2081,22 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   }
   function hideFormError() { formErr.classList.remove('is-on'); }
 
+  /* A support-shaped request still gets captured — they gave us their details
+     and a real customer needs answering — but it is tagged SUPPORT so Default
+     keeps it out of a sales queue, and the visitor is shown where to go rather
+     than a scheduler that will never open for them. */
+  function showSupportDone() {
+    S.submitted = true;
+    setBusy(false);
+    form.hidden = true;
+    form.style.display = 'none';
+    txt($('usv-cust-eyebrow'), 'Sent to support');
+    $('usv-cust-h').innerHTML = 'We&rsquo;ve got it \u2014 support will <em>follow up</em>.';
+    txt($('usv-cust-sub'), 'If it is urgent, these reach someone right now.');
+    showPanel(outCust);
+    say('Sent to support.');
+  }
+
   function showDone(copy) {
     form.hidden = true;
     form.style.display = 'none';
@@ -2036,7 +2128,10 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     S.cbRegistered = true;
 
     d.registerSubmissionCallbacks({
-      onSuccess: function () { S.submitted = true; setBusy(false); showDone(); },
+      onSuccess: function () {
+        if (S.routing === 'SUPPORT') { showSupportDone(); return; }
+        S.submitted = true; setBusy(false); showDone();
+      },
       onError: function (err) {
         setBusy(false);
         showFormError('We couldn’t send that through. Give it another go, or email ' +
@@ -2044,6 +2139,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
         if (window.console) console.error('[usv] Default submission failed', err);
       },
       onSchedulerDisplayed: function () { S.submitted = true; setBusy(false); showDone(); },
+
       onMeetingBooked: function () {
         txt($('usv-done-copy'),
             'You’re booked. A calendar invite is on its way to ' + emailInput.value.trim() + '.');
@@ -2109,15 +2205,16 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     track('submit', {
       place_source  : S.match,
       place_verified: String(S.verified),
-      routing_owner : CFG.ROUTING[(root.querySelector('input[name="restaurant_status"]:checked') || {}).value] || '',
-      business_type : typeSel.value
+      routing_owner : CFG.ROUTING[(root.querySelector('input[name="restaurant_status"]:checked') || {}).value] || ''
     });
     setBusy(true);
     registerDefaultCallbacks();
 
     /* If Default never answers, don't strand the visitor on a spinner. */
     window.setTimeout(function () {
-      if (!S.submitted) { setBusy(false); showDone(); }
+      if (S.submitted) return;
+      if (S.routing === 'SUPPORT') { showSupportDone(); return; }
+      setBusy(false); showDone();
     }, 6000);
 
     /* falls through to Default's listener */
@@ -2162,7 +2259,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
 
       if (what === 'bot') {
         if (!nameInput.value) nameInput.value = 'New Restaurant';
-        if (!typeSel.value) { typeSel.value = 'Full-service restaurant'; typeSel.classList.remove('usv-placeheld'); }
         goStep(2);
         fillHuman();
         emailInput.value = 'crawler@example.com';
@@ -2173,7 +2269,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
 
       } else if (what === 'fast') {
         if (!nameInput.value) nameInput.value = 'New Restaurant';
-        if (!typeSel.value) { typeSel.value = 'Full-service restaurant'; typeSel.classList.remove('usv-placeheld'); }
         goStep(2);
         fillHuman();
         emailInput.value = 'speedrun@example.com';
@@ -2184,7 +2279,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
 
       } else if (what === 'typo') {
         if (!nameInput.value) nameInput.value = 'New Restaurant';
-        if (!typeSel.value) { typeSel.value = 'Full-service restaurant'; typeSel.classList.remove('usv-placeheld'); }
         goStep(2);
         fillHuman();
         S.typoDismissed = false;
@@ -2207,7 +2301,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     track('step0_view');
     paintStatus();
     setIcon('search');
-    typeSel.classList.toggle('usv-placeheld', !typeSel.value);
 
     /* Stamp the form id Default should post to. The SDK treats this attribute
        as authoritative: it wins over the page-level snippet and skips the

@@ -404,6 +404,11 @@ function buildPrototypeStub() {
   /* Mimic Default's auto-attach SDK: bind to any form carrying
      data-default-form-id, read the fields off the DOM the way it does, and
      record the payload instead of sending it. */
+  /* Stop the real Default SDK from ever loading here. Without this the embed
+     boots it, it attaches to the form, and a completed prototype submission
+     creates a genuine lead in Default and redirects off the page. */
+  window.__default__loaded = true;
+
   window.__usvSubmissions = [];
   var CB = {};
   window.__default__ = window.__default__ || {};
