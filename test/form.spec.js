@@ -607,3 +607,61 @@ test('every contact field is required on both branches', async ({ page }) => {
       .toHaveLength(0);
   }
 });
+
+/* ── schema stability ────────────────────────────────────────────────────── */
+
+/**
+ * Default builds its field list from what a submission contains. If a field is
+ * omitted when blank it never appears in the mapping UI, so the shape has to be
+ * identical whether or not Google matched.
+ */
+test('every field reaches Default even when nothing was matched', async ({ page }) => {
+  // no Google: the name is typed, so every place_* value is blank
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'google', { value: undefined, writable: false });
+  });
+  await open(page, 'prospect');
+
+  const input = page.locator('[role="combobox"]');
+  await input.click();
+  await input.fill('Somewhere Unlisted');
+  await page.getByRole('option', { name: /isn.t listed yet/i }).click();
+  await continueToStep2(page);
+  await fillContact(page, { email: 'chef@somewhere.com' });
+  await submit(page);
+
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  const { fields } = (await submissions(page))[0];
+
+  for (const name of ['place_id', 'place_city', 'place_region', 'place_postal_code',
+                      'place_country', 'place_website', 'place_phone', 'place_hours',
+                      'place_rating', 'place_category', 'utm_source', 'gclid',
+                      'email_type', 'phone_vs_place', 'visitor_type']) {
+    expect(fields, name + ' missing — Default would never learn it exists')
+      .toHaveProperty(name);
+  }
+});
+
+test('the two branches submit the same shape apart from their own question',
+  async ({ page }) => {
+    const shapeOf = async (visitor, choice) => {
+      await open(page, visitor);
+      await pickRestaurant(page, 'Tautog');
+      await continueToStep2(page);
+      await page.locator('input[value="' + choice + '"]').check({ force: true });
+      await fillContact(page);
+      await submit(page);
+      await expect.poll(() => submissions(page).then((s) => s.length)).toBeGreaterThan(0);
+      const all = await submissions(page);
+      return Object.keys(all[all.length - 1].fields).sort();
+    };
+
+    const prospect = await shapeOf('prospect', 'exploring');
+    const customer = await shapeOf('current_customer', 'add_location');
+
+    const onlyProspect = prospect.filter((k) => !customer.includes(k));
+    const onlyCustomer = customer.filter((k) => !prospect.includes(k));
+
+    expect(onlyProspect).toEqual(['restaurant_status']);
+    expect(onlyCustomer).toEqual(['help_topic']);
+  });

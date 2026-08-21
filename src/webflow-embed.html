@@ -2001,11 +2001,22 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     var old = form.querySelectorAll('input[data-usv-hidden]'), i, el;
     for (i = 0; i < old.length; i++) old[i].parentNode.removeChild(old[i]);
 
+    /* Every field goes on every submission, empty or not.
+
+       Default learns its schema from what a submission contains, so anything
+       omitted when blank simply never appears in its field list to be mapped —
+       a lead that skipped the Google match would permanently hide place_city
+       from the mapping UI. Sending a consistent shape every time costs a few
+       empty strings and makes the schema deterministic.
+
+       The one exception is above: the branch question that was never asked has
+       its name stripped, because there an empty value would misread as
+       "answered with nothing" rather than "not applicable". */
     var keys = Object.keys(v), key, val, label;
     for (i = 0; i < keys.length; i++) {
       key = keys[i];
       val = v[key];
-      if (val === '' || val == null) continue;      /* no blank strings */
+      if (val == null) val = '';
 
       el = document.createElement('input');
       el.type = 'hidden';

@@ -280,6 +280,27 @@ A diner never submits.
 `place_source` is `google`, `manual`, or `not_listed`, so Default can tell a
 verified match from a hand-typed name without parsing anything.
 
+### Registering the fields in Default
+
+Default learns its schema **from what a submission contains**. A field that is
+not in a submission never appears in the mapping UI, so every field is sent on
+every submission — blank when unknown — rather than omitted when empty.
+
+The one exception is the branch question: a prospect never sends `help_topic`
+and a customer never sends `restaurant_status`, because there a blank would
+misread as "answered with nothing" instead of "not applicable".
+
+That means **two discovery submissions** register the complete schema:
+
+```
+upserve.com/book-a-demo?updateDefaultFields=true
+```
+
+1. Run it once as **new/returning** → registers everything + `restaurant_status`
+2. Run it once as **already a customer** → adds `help_topic`
+
+Then map them in Default → Webform Fields → Save mappings.
+
 ### Field labels in Default
 
 Default derives each field's name from the DOM. For a hidden input the only
