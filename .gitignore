@@ -11,3 +11,7 @@ prototype.html
 _*.html
 .DS_Store
 node_modules/
+
+# Playwright
+test-results/
+playwright-report/

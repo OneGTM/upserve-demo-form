@@ -679,9 +679,7 @@
       place_website        : 'Restaurant website',
       place_phone          : 'Restaurant phone (from Google)',
       place_category       : 'Restaurant category (from Google)',
-      place_types          : 'Google place types',
       place_hours          : 'Opening hours',
-      place_open_now       : 'Open right now',
       place_rating         : 'Google rating',
       place_review_count   : 'Google review count',
       place_price_level    : 'Google price level',
@@ -736,6 +734,19 @@
 
   function txt(el, s) { if (el) el.textContent = s; }
   function say(s) { txt($('usv-live'), s); }
+
+  /* Funnel events -> GTM's dataLayer. Shows where people drop between the two
+     steps, how many pick a Google result vs type it, and how much spam the
+     traps eat. Creates dataLayer if GTM hasn't yet, so ordering never matters.
+     Wrapped end to end: analytics must never be able to break a submission. */
+  function track(name, extra) {
+    try {
+      var dl = window.dataLayer || (window.dataLayer = []);
+      var p = { event: 'usv_form_' + name }, k;
+      if (extra) { for (k in extra) if (extra[k] !== '' && extra[k] != null) p[k] = extra[k]; }
+      dl.push(p);
+    } catch (e) { /* no-op */ }
+  }
 
   /* =========================================================================
      State
@@ -1101,6 +1112,7 @@
       /* "not listed" almost always means brand-new — pre-select it,
          they can still change it on step 2. */
       preselectStatus('brand_new_opening');
+      track('place_selected', { place_source: 'not_listed' });
       clearErr($('usv-f-name'));
       nameInput.focus();
       return;
@@ -1128,7 +1140,7 @@
        coordinates and the Maps link ride along at no extra cost. */
     var FIELDS = ['id', 'displayName', 'formattedAddress', 'addressComponents',
                   'websiteURI', 'nationalPhoneNumber', 'rating', 'userRatingCount',
-                  'priceLevel', 'businessStatus', 'location', 'types',
+                  'priceLevel', 'businessStatus', 'location',
                   'regularOpeningHours', 'primaryTypeDisplayName',
                   'googleMapsURI', 'utcOffsetMinutes'];
 
@@ -1147,6 +1159,8 @@
       /* An operating business on Google is almost never a brand-new opening.
          A permanently closed one usually is the opposite: someone taking over
          the space, where the old listing is all Google still knows about. */
+      track('place_selected', { place_source: 'google',
+                                 business_status: place.businessStatus || '' });
       if (place.businessStatus === 'CLOSED_PERMANENTLY') preselectStatus('brand_new_opening');
       else if (place.businessStatus === 'OPERATIONAL') preselectStatus('replacing_pos');
       newSessionToken();          // session closes once details are fetched
@@ -1551,6 +1565,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       window.setTimeout(function () { nameInput.focus(); }, 40);
     } else {
       paintPlaceChip();
+      track('step2_view', { place_source: S.match, place_verified: String(S.verified) });
       step1.classList.remove('is-on'); step1.hidden = true;
       step2.classList.add('is-on');    step2.hidden = false;
       $('usv-dot2').classList.add('is-on');
@@ -1715,12 +1730,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     v.place_maps_url        = place && place.googleMapsURI ? String(place.googleMapsURI) : '';
     v.place_category        = place && place.primaryTypeDisplayName
                                 ? String(place.primaryTypeDisplayName) : '';
-    v.place_types           = place && place.types && place.types.length
-                                ? place.types.join(', ') : '';
     v.place_hours           = openingHours(place);
-    v.place_open_now        = place && place.regularOpeningHours &&
-                              typeof place.regularOpeningHours.openNow === 'boolean'
-                                ? String(place.regularOpeningHours.openNow) : '';
     v.place_lat             = place && place.location && typeof place.location.lat === 'function'
                                 ? String(place.location.lat()) : '';
     v.place_lng             = place && place.location && typeof place.location.lng === 'function'
@@ -1897,6 +1907,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     if (trap) {
       e.stopPropagation();
       S.submitted = true;
+      track('blocked', { reason: trap });
       if (window.console && CFG.__debug) console.log('[usv] blocked:', trap);
       showDone('Thanks — we’ve got everything we need. Someone will be in touch shortly.');
       return;
@@ -1917,6 +1928,12 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     }
 
     syncHiddenFields();
+    track('submit', {
+      place_source  : S.match,
+      place_verified: String(S.verified),
+      routing_owner : CFG.ROUTING[(root.querySelector('input[name="restaurant_status"]:checked') || {}).value] || '',
+      business_type : typeSel.value
+    });
     setBusy(true);
     registerDefaultCallbacks();
 
@@ -2009,6 +2026,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
      ========================================================================= */
   function boot() {
     S.renderedAt = Date.now();
+    track('step1_view');
     paintStatus();
     setIcon('search');
     typeSel.classList.toggle('usv-placeheld', !typeSel.value);
