@@ -37,8 +37,8 @@ That's it. Nothing in Page Settings, no second embed, no external script.
 
 Webflow caps a Code Embed at
 [50,000 characters](https://help.webflow.com/hc/en-us/articles/33961332238611-Custom-code-embed).
-The readable source is ~87,400 so `build.js` strips comments, collapses
-whitespace, and shortens the `usv-*` class names. Output is **49,292** — it
+The readable source is ~86,700 so `build.js` strips comments, collapses
+whitespace, and shortens the `usv-*` class names. Output is **48,981** — it
 fails loudly if an edit ever pushes it over.
 
 Nothing is renamed inside the JavaScript, so the logic is still readable in
@@ -213,35 +213,15 @@ FIELDS : {
 Edit the right-hand side freely — it only changes what Default displays. The
 left side is the wire name and should stay stable once Default has mapped it.
 
-### Atmosphere fields (off by default)
+### Adding more Places fields
 
-`CFG.PLACE_ATMOSPHERE = true` adds dine-in, takeout, delivery, reservations,
-whether they serve beer/wine/cocktails, meal periods, and Google's editorial
-blurb. Useful for qualifying a restaurant, but these are Places
-"Enterprise + Atmosphere" fields and bill at a higher rate than everything
-else. Add matching `FIELDS` labels for any you turn on.
+The details call requests a fixed list in `choose()`. Adding a field there plus
+a matching `FIELDS` label is all it takes.
 
-**Scoring signals** — none of these gate anyone; they all just travel with the
-lead.
-
-| Field | Values | What it means |
-|---|---|---|
-| `email_type` | `business` / `free` / `disposable` | Free inboxes are welcome — the label is for scoring, not filtering. |
-| `email_domain_match` | `match` / `personal` / `different` / `unknown` | Email domain vs the restaurant's own website from Google. `match` is the strongest "this person really works here" signal available at form time. **`personal` is its own answer, not a miss** — plenty of real operators run the place from a gmail address. |
-| `phone_vs_place` | `exact` / `same_area` / `different` / `unknown` | The number they gave vs the number Google lists for the place. `exact` means they handed over the restaurant's own line. Mobile numbers travel with people, so `different` means nothing on its own. |
-| `place_closed` | `permanently` / `temporarily` / omitted | Google says the listing is shut. Usually a stale pick — sometimes a new operator taking over the space, which is a *good* lead. A permanently closed match pre-selects "brand-new opening" instead of "replacing POS". |
-| `email_domain` | the domain itself | For your own scoring rules. |
-
-**Attribution** — `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`,
-`utm_content`, `gclid`, `landing_page`, `referrer`. First touch is persisted in
-`localStorage` on the visitor's first landing, so a lead who arrives from an ad
-and converts three days later still carries the campaign.
-
-The Default SDK also attaches its own UTM, gclid, referrer and submission URL
-independently. Sending them as explicit fields on top of that is what lets
-Default branch on them in conditional logic.
-
----
+One caveat: service-model fields (dine-in, delivery, serves-alcohol, editorial
+summary) sit in Places' higher-priced *Enterprise + Atmosphere* tier, unlike
+everything currently requested, which all rides in the tier the rating and
+website fields already put us in.
 
 ## The anti-spam layer
 
@@ -267,6 +247,39 @@ floor and the honeypot both complete the flow with zero calls to
 `DefaultSDK.submit`.
 
 ---
+
+## Email and phone validation
+
+Both are checked **on blur** — at the field, while the visitor is still looking
+at it — and again at submit.
+
+**Email** must be `something@something.tld` with a real 2+ letter TLD.
+
+```
+reject   joe@gmail   joe@gmail.c   joe@.com   joe@gmail..com   joe@@x.com
+accept   jamie@tautog.com   joe+tag@gmail.com   chef@my-diner.co.uk
+```
+
+**Phone** is structural NANP: ten digits, area code and exchange may not start
+with 0 or 1, all-same-digit numbers are out. A leading `+` switches to
+international mode (8–15 digits).
+
+```
+reject   1018492900   4010492900   0000000000   401849290   911
+accept   (401) 849-2900   +44 20 7946 0958
+```
+
+### Format only, on purpose
+
+This validates **shape**, not **deliverability**. `joe@totallyfake12345.xyz` is
+correctly formatted and passes; nothing client-side can tell you the domain has
+no mail server. Same for phone — well-formed is not the same as active, and not
+the same as a mobile.
+
+That is a deliberate call, not a gap. Live verification needs a server-side
+lookup, which means a backend, an API bill and latency on a form that currently
+has none of the three. The typo rescue already catches the failure that actually
+happens: a misspelt common domain.
 
 ## Email typo rescue
 
@@ -304,7 +317,7 @@ logging can reach the live site.
 ```bash
 npm install
 npx playwright install chromium
-npm test          # builds, then runs 40 checks on desktop + mobile
+npm test          # builds, then runs 44 checks on desktop + mobile
 ```
 
 The suite drives the **built** `webflow/embed.html` — the exact file you paste
@@ -393,8 +406,8 @@ the brand black (`#474747`, `#737373`) rather than off-palette hues.
 - **Mobile viewport.** The layout stacks below 480px, inputs are 16px so iOS
   doesn't zoom on focus, and tap targets measure ~51px. Verified via computed
   styles and the grid rule; worth one pass on a real handset before launch.
-- **Size headroom.** The embed builds to 49,292 of 50,000 characters — about
-  700 spare. This is the binding constraint: anything substantial now needs
+- **Size headroom.** The embed builds to 48,981 of 50,000 characters — about
+  1,000 spare. This is the binding constraint: anything substantial now needs
   something traded out first. `build.js` and CI both fail rather than letting
   Webflow truncate silently. This is the binding constraint now: a large new section will need
   something trimmed first. `build.js` fails loudly rather than letting Webflow
