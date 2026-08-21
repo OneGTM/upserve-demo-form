@@ -1,0 +1,39 @@
+name: build
+
+# The 50,000-character Webflow Embed cap is the one limit that breaks this
+# silently — Webflow truncates rather than erroring. build.js exits non-zero
+# when the output crosses it, so CI is the backstop on every PR.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build (fails if the embed exceeds 50,000 chars)
+        run: node build.js
+
+      - name: Built JavaScript must parse
+        run: |
+          node -e "
+            const fs = require('fs');
+            const js = fs.readFileSync('webflow/embed.html','utf8')
+              .match(/<script>([\s\S]*?)<\/script>/)[1];
+            fs.writeFileSync('/tmp/embed.js', js);
+          "
+          node --check /tmp/embed.js
+
+      - name: No API key may reach the repo
+        run: |
+          if grep -rIn --exclude-dir=.git --exclude=build.yml -E "AIza[0-9A-Za-z_-]{35}" . ; then
+            echo "::error::A Google API key is present in tracked files. Keys belong in config.local.json."
+            exit 1
+          fi
+          echo "clean"

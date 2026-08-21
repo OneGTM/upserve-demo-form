@@ -1,0 +1,237 @@
+<title>Upserve Demo Intake</title>
+
+<style>
+  /* Committed single-theme design: the Upserve brand is black ground + #ffcd04.
+     Every colour is painted explicitly so the page holds on either host ground. */
+  :root{
+    --ink:#0a0908;          /* warm near-black, biased toward the yellow */
+    --ink-raised:#151310;
+    --yellow:#ffcd04;
+    --yellow-soft:#f5e1a4;
+    --paper:#ffffff;
+    --on-dark:rgba(255,255,255,.90);
+    --on-dark-mute:rgba(255,255,255,.52);
+    --on-dark-faint:rgba(255,255,255,.34);
+    --hair:rgba(255,255,255,.10);
+    --serif:"Fraunces",ui-serif,Georgia,"Times New Roman",serif;
+    --sans:"Lato",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    background-color:var(--ink);
+    background-image:
+      radial-gradient(1200px 640px at 50% -14%, rgba(255,205,4,.15), transparent 60%),
+      linear-gradient(180deg,#161310 0%, #0a0908 46%);
+    background-repeat:no-repeat;
+    color:var(--on-dark);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  *,*::before,*::after{ box-sizing:border-box; }
+
+  .wrap{
+    max-width:640px;
+    margin:0 auto;
+    padding:clamp(34px,6vw,68px) clamp(16px,4vw,24px) clamp(56px,8vw,96px);
+    display:flex;
+    flex-direction:column;
+    gap:clamp(22px,4vw,34px);
+  }
+
+  /* --- masthead ---------------------------------------------------------- */
+  .mast{ display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; }
+  .lockup{ display:flex; align-items:center; gap:11px; }
+  .glass{
+    width:28px; height:28px; border-radius:50%;
+    border:2px solid var(--paper); position:relative; flex:0 0 28px;
+  }
+  .glass::before{
+    content:""; position:absolute; left:50%; top:5px; transform:translateX(-50%);
+    width:2px; height:6px; background:var(--paper);
+  }
+  .glass::after{
+    content:""; position:absolute; left:4px; right:4px; top:11px; height:2px;
+    background:var(--paper); border-radius:2px; box-shadow:0 4px 0 -0.5px var(--paper);
+  }
+  .wordmark{
+    font-family:var(--serif); font-weight:600; font-size:29px;
+    letter-spacing:-.022em; color:var(--paper); line-height:1;
+  }
+  .kicker{
+    font-size:10.5px; font-weight:700; letter-spacing:.19em; text-transform:uppercase;
+    color:var(--yellow);
+  }
+  .frame{
+    font-size:15px; line-height:1.62; color:var(--on-dark-mute);
+    max-width:46ch; margin:0; text-wrap:balance;
+  }
+  .frame b{ color:var(--on-dark); font-weight:700; }
+
+  /* --- the form sits here (its own styles are scoped to #usv-demo) -------- */
+  .live{ margin:0 -4px; }
+  .live .usv-stage{ padding:0 4px; }
+
+  /* --- prototype triggers: on the page, never inside the form ------------- */
+  .tryrow{
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
+    gap:8px; margin:0;
+  }
+  .trylab{
+    font-size:10.5px; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--on-dark-faint); margin-right:2px;
+  }
+  .chip{
+    font-family:var(--sans); font-size:12.5px; font-weight:700;
+    color:var(--on-dark); background:transparent;
+    border:1px solid rgba(255,255,255,.20); border-radius:99px;
+    padding:6px 13px; cursor:pointer;
+    transition:border-color .15s ease, color .15s ease, background-color .15s ease;
+  }
+  .chip:hover{ border-color:var(--yellow); color:var(--yellow); }
+  .chip:focus-visible{ outline:2px solid var(--yellow); outline-offset:2px; }
+
+  /* --- under the hood ----------------------------------------------------- */
+  .lanes{
+    display:grid; gap:1px;
+    background:var(--hair);
+    border:1px solid var(--hair);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  .lane{ background:var(--ink-raised); padding:19px 20px; }
+  .lane h3{
+    font-family:var(--serif); font-weight:600; font-size:17px; line-height:1.25;
+    letter-spacing:-.008em; color:var(--paper); margin:0 0 7px;
+  }
+  .lane h3 em{ font-style:italic; font-weight:400; color:var(--yellow-soft); }
+  .lane p{ font-size:14px; line-height:1.6; color:var(--on-dark-mute); margin:0; }
+  .lane code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+    color:var(--yellow-soft); background:rgba(255,205,4,.09);
+    padding:1px 5px; border-radius:4px;
+  }
+  @media (min-width:620px){ .lanes{ grid-template-columns:1fr 1fr; } .lane--wide{ grid-column:1 / -1; } }
+
+  /* --- routing ------------------------------------------------------------ */
+  .routes{
+    display:flex; flex-direction:column; gap:1px;
+    background:var(--hair); border:1px solid var(--hair);
+    border-radius:10px; overflow:hidden;
+  }
+  .route{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    background:var(--ink-raised); padding:14px 18px;
+    font-size:14.5px; line-height:1.4; color:var(--on-dark);
+  }
+  .owner{
+    font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+    padding:4px 9px; border-radius:4px; flex:0 0 auto;
+    background:var(--yellow); color:var(--ink);
+  }
+  .owner--sdr{ background:transparent; color:var(--yellow); box-shadow:inset 0 0 0 1.5px var(--yellow); }
+
+  /* --- foot --------------------------------------------------------------- */
+  .foot{
+    font-size:12.5px; line-height:1.65; color:var(--on-dark-faint);
+    text-align:center; margin:0; max-width:52ch; align-self:center;
+  }
+  .foot strong{ color:var(--on-dark-mute); font-weight:700; }
+
+  h2.sect{
+    font-family:var(--serif); font-weight:600; font-size:13px;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--on-dark-faint);
+    margin:0 0 -8px; text-align:center;
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{ animation-duration:.001ms !important; transition-duration:.001ms !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="lockup">
+      <span class="glass" aria-hidden="true"></span>
+      <span class="wordmark">Upserve</span>
+    </div>
+    <p class="kicker">Demo request form &middot; working prototype</p>
+    <p class="frame">
+      The live form, running the real code. <b>Nothing you type is sent anywhere</b> &mdash;
+      Default is stubbed and the restaurant finder runs on canned data.
+    </p>
+
+    <div class="tryrow">
+      <span class="trylab">Try</span>
+      <button type="button" class="chip" data-demo="bot">Bot fill</button>
+      <button type="button" class="chip" data-demo="fast">Fast submit</button>
+      <button type="button" class="chip" data-demo="typo">Typo email</button>
+      <button type="button" class="chip" data-demo="reset">Reset</button>
+    </div>
+  </header>
+
+  <div class="live">
+    <!--FORM-->
+  </div>
+
+  <h2 class="sect">What it&rsquo;s doing</h2>
+
+  <div class="lanes">
+    <div class="lane">
+      <h3>The finder <em>is</em> the verification</h3>
+      <p>Operators pick their restaurant while typing. Junk and blank names disappear on
+      their own, and &ldquo;not listed yet&rdquo; is a visible option that pre-selects
+      brand-new opening. The lookup only ever sees the name field &mdash; it never touches
+      contact details, and it never blocks a submit.</p>
+    </div>
+
+    <div class="lane">
+      <h3>The traps are <em>invisible</em></h3>
+      <p>A field humans never see, plus a three-second floor on how fast anyone could
+      really fill this in. Either one trips and the visitor gets the same polite
+      thank-you while nothing is created. No CAPTCHA to squint at on a phone.</p>
+    </div>
+
+    <div class="lane">
+      <h3>The dropdown does the <em>hard</em> part</h3>
+      <p>Meta pre-fills every text input, so accidental submitters sail through anything
+      you can type into. A required business type with no &ldquo;Other&rdquo; is the one
+      field that demands a real decision &mdash; and where non-restaurants exit.</p>
+    </div>
+
+    <div class="lane">
+      <h3>Nothing gets <em>blocked</em></h3>
+      <p><code>gmial.com.com</code> gets an inline fix before submit, but it only suggests.
+      Free inboxes are welcome: requiring a business email would have turned away Just
+      Wing It and Tautog Tavern. The domain feeds scoring, never a gate.</p>
+    </div>
+
+    <div class="lane lane--wide">
+      <h3>Four free checks ride along, <em>none</em> of them gate</h3>
+      <p>Whether the email domain matches the restaurant&rsquo;s own website
+      (<code>match</code> / <code>personal</code> / <code>different</code>) &mdash; a personal
+      inbox is its own answer, not a failure. Whether the phone is the restaurant&rsquo;s
+      listed line. Whether the address is a throwaway. And whether Google has the place
+      marked closed &mdash; which pre-selects &ldquo;brand-new opening,&rdquo; because a
+      shuttered listing usually means someone is taking the space over.</p>
+    </div>
+  </div>
+
+  <h2 class="sect">Where it routes</h2>
+
+  <div class="routes">
+    <div class="route"><span>Opening a brand-new spot</span><span class="owner">AE</span></div>
+    <div class="route"><span>Replacing a current POS</span><span class="owner">AE</span></div>
+    <div class="route"><span>Just exploring</span><span class="owner owner--sdr">SDR</span></div>
+  </div>
+
+  <p class="foot">
+    Default ingests <strong>everything</strong> &mdash; contact details, restaurant name,
+    business type, status, the resolved place, and UTM. Routing arrives as a submitted
+    field, not a webhook, so Default branches on it with the conditional logic it already
+    has and never waits on anything mid-workflow. Ships as one custom-code embed.
+  </p>
+
+</div>

@@ -1,0 +1,13 @@
+# Secrets — never commit a client's API key
+config.local.json
+
+# Build output. Run `node build.js` to regenerate; the embed carries the live
+# API key, so it stays out of history.
+webflow/embed.html
+preview.html
+prototype.html
+
+# Scratch
+_*.html
+.DS_Store
+node_modules/
