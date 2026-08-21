@@ -37,8 +37,8 @@ That's it. Nothing in Page Settings, no second embed, no external script.
 
 Webflow caps a Code Embed at
 [50,000 characters](https://help.webflow.com/hc/en-us/articles/33961332238611-Custom-code-embed).
-The readable source is ~86,400 so `build.js` strips comments, collapses
-whitespace, and shortens the `usv-*` class names. Output is **48,719** — it
+The readable source is ~87,100 so `build.js` strips comments, collapses
+whitespace, and shortens the `usv-*` class names. Output is **49,099** — it
 fails loudly if an edit ever pushes it over.
 
 Nothing is renamed inside the JavaScript, so the logic is still readable in
@@ -299,7 +299,31 @@ logging can reach the live site.
 
 ---
 
-## Testing locally
+## Testing
+
+```bash
+npm install
+npx playwright install chromium
+npm test          # builds, then runs 34 checks on desktop + mobile
+```
+
+The suite drives the **built** `webflow/embed.html` — the exact file you paste
+— in a real browser, through user-facing selectors only (`name` attributes,
+roles, visible text). It never reaches into internals, so the class-name
+minifier can rename whatever it likes and the tests still pass.
+
+Default and Google are stubbed, so a run never touches a live service. The two
+assertions that matter most:
+
+- a trap firing results in **zero** submissions reaching Default
+- every field Default receives arrives under a **readable label**, never a slug
+
+It also honours the real 3-second submit floor rather than lowering it for
+tests — which is why each test takes ~3.5s, and why they run in parallel.
+
+CI runs the same suite plus the size and secret guards on every push and PR.
+
+### Manual preview
 
 ```bash
 node build.js
@@ -320,6 +344,25 @@ payload passes Default's validation rules (every response key has a matching
 question, the email-typed question carries a value).
 
 ---
+
+## Funnel tracking
+
+Six events push to GTM's `dataLayer`, so the two-step drop-off is measurable:
+
+| Event | Fires when |
+|---|---|
+| `usv_form_step1_view` | form renders |
+| `usv_form_place_selected` | a Google result or "not listed yet" is picked |
+| `usv_form_step2_view` | step 2 reached — the drop-off denominator |
+| `usv_form_submit` | a real submission goes to Default |
+| `usv_form_blocked` | a trap fired (spam volume, without polluting Default) |
+
+`submit` carries `place_source`, `place_verified`, `routing_owner` and
+`business_type`.
+
+The whole thing is wrapped in try/catch and creates `dataLayer` if GTM has not
+yet — **analytics can never break a submission**. A test proves it by rigging
+`dataLayer` to throw on access and asserting the submission still lands.
 
 ## Brand
 
@@ -350,8 +393,10 @@ the brand black (`#474747`, `#737373`) rather than off-palette hues.
 - **Mobile viewport.** The layout stacks below 480px, inputs are 16px so iOS
   doesn't zoom on focus, and tap targets measure ~51px. Verified via computed
   styles and the grid rule; worth one pass on a real handset before launch.
-- **Size headroom.** The embed builds to 48,719 of 50,000 characters — about
-  1,300 spare. This is the binding constraint now: a large new section will need
+- **Size headroom.** The embed builds to 49,099 of 50,000 characters — about
+  900 spare. This is the binding constraint: anything substantial now needs
+  something traded out first. `build.js` and CI both fail rather than letting
+  Webflow truncate silently. This is the binding constraint now: a large new section will need
   something trimmed first. `build.js` fails loudly rather than letting Webflow
   truncate silently. A large new section may need something trimmed; `build.js` will
   tell you rather than letting Webflow truncate silently.
