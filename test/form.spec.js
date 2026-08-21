@@ -395,3 +395,43 @@ test('with Google unavailable the field still works and still submits',
     expect(fields.place_verified).toBe('false');
     expect(fields.restaurant_name).toBe('Some Unlisted Diner');
   });
+
+/* ── field-level validation ──────────────────────────────────────────────── */
+
+test('an incomplete phone number is flagged at the field, not after submit',
+  async ({ page }) => {
+    await open(page);
+    await pickRestaurant(page, 'Tautog');
+    await chooseType(page);
+    await continueToStep2(page);
+
+    await page.fill('input[name="phone"]', '401849');        // too short
+    await page.locator('input[name="first_name"]').click();  // blur
+    await expect(page.getByText(/looks incomplete/i)).toBeVisible();
+
+    await page.fill('input[name="phone"]', '4018492900');
+    await page.locator('input[name="first_name"]').click();
+    await expect(page.getByText(/looks incomplete/i)).not.toBeVisible();
+  });
+
+test('a one-letter TLD is rejected', async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await chooseType(page);
+  await continueToStep2(page);
+
+  await page.fill('input[name="email"]', 'joe@gmail.c');
+  await page.locator('input[name="first_name"]').click();
+  await expect(page.getByText(/missing something/i)).toBeVisible();
+});
+
+test('a legitimate multi-part domain is accepted', async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await chooseType(page);
+  await continueToStep2(page);
+
+  await page.fill('input[name="email"]', 'chef@my-diner.co.uk');
+  await page.locator('input[name="first_name"]').click();
+  await expect(page.getByText(/missing something/i)).not.toBeVisible();
+});

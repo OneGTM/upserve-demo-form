@@ -1444,6 +1444,13 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     clearErr($('usv-f-phone'));
   });
 
+  on(phoneInput, 'blur', function () {
+    var val = phoneInput.value.trim();
+    if (val === '') return;                       /* not filled in yet */
+    if (!phoneValid(val)) setErr($('usv-f-phone'), 'That number looks incomplete.');
+    else clearErr($('usv-f-phone'));
+  });
+
   function phoneE164(v) {
     var raw = String(v || '').trim();
     var d = digitsOf(raw);
@@ -1468,7 +1475,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   /* =========================================================================
      Validation
      ========================================================================= */
-  var EMAIL_RE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
+  var EMAIL_RE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[a-zA-Z]{2,}$/;
 
   function setErr(field, msg) {
     if (!field) return;

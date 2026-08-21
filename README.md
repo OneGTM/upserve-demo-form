@@ -37,8 +37,8 @@ That's it. Nothing in Page Settings, no second embed, no external script.
 
 Webflow caps a Code Embed at
 [50,000 characters](https://help.webflow.com/hc/en-us/articles/33961332238611-Custom-code-embed).
-The readable source is ~87,100 so `build.js` strips comments, collapses
-whitespace, and shortens the `usv-*` class names. Output is **49,099** — it
+The readable source is ~87,400 so `build.js` strips comments, collapses
+whitespace, and shortens the `usv-*` class names. Output is **49,292** — it
 fails loudly if an edit ever pushes it over.
 
 Nothing is renamed inside the JavaScript, so the logic is still readable in
@@ -304,7 +304,7 @@ logging can reach the live site.
 ```bash
 npm install
 npx playwright install chromium
-npm test          # builds, then runs 34 checks on desktop + mobile
+npm test          # builds, then runs 40 checks on desktop + mobile
 ```
 
 The suite drives the **built** `webflow/embed.html` — the exact file you paste
@@ -393,8 +393,8 @@ the brand black (`#474747`, `#737373`) rather than off-palette hues.
 - **Mobile viewport.** The layout stacks below 480px, inputs are 16px so iOS
   doesn't zoom on focus, and tap targets measure ~51px. Verified via computed
   styles and the grid rule; worth one pass on a real handset before launch.
-- **Size headroom.** The embed builds to 49,099 of 50,000 characters — about
-  900 spare. This is the binding constraint: anything substantial now needs
+- **Size headroom.** The embed builds to 49,292 of 50,000 characters — about
+  700 spare. This is the binding constraint: anything substantial now needs
   something traded out first. `build.js` and CI both fail rather than letting
   Webflow truncate silently. This is the binding constraint now: a large new section will need
   something trimmed first. `build.js` fails loudly rather than letting Webflow
