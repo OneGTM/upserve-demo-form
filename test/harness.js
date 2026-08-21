@@ -35,10 +35,15 @@ const STUB = `<script>
   document.addEventListener('submit', function (e) {
     var f = e.target;
     if (!f.hasAttribute || !f.hasAttribute('data-default-form-id')) return;
-    var fields = {}, labels = {}, i, el, fs_, lab;
+    var fields = {}, labels = {}, optionLabels = {}, i, el, fs_, lab;
     for (i = 0; i < f.elements.length; i++) {
       el = f.elements[i];
       if (!el.name || el.type === 'password') continue;
+      if (el.type === 'radio') {
+        optionLabels[el.value] =
+          ((el.labels && el.labels[0] && el.labels[0].textContent) || '')
+            .replace(/\\s+/g, ' ').trim();
+      }
       if ((el.type === 'radio' || el.type === 'checkbox') && !el.checked) continue;
       fs_ = el.closest('fieldset');
       lab = (el.type === 'radio'
@@ -49,7 +54,8 @@ const STUB = `<script>
       labels[el.name] = lab.replace(/\\s+/g, ' ').trim();
     }
     window.__submissions.push({
-      form_id: f.getAttribute('data-default-form-id'), fields: fields, labels: labels
+      form_id: f.getAttribute('data-default-form-id'),
+      fields: fields, labels: labels, optionLabels: optionLabels
     });
     setTimeout(function () { CB.onSuccess && CB.onSuccess({ success: true }); }, 20);
   });

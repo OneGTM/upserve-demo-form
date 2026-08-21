@@ -151,7 +151,7 @@ test('"just exploring" routes to SDR, everything else to AE', async ({ page }) =
   await pickRestaurant(page, 'Tautog');
   await chooseType(page);
   await continueToStep2(page);
-  await page.locator('label[data-status="exploring"]').click();
+  await page.locator('[data-status="exploring"]').click();
   await fillContact(page);
   await submit(page);
 
@@ -182,17 +182,34 @@ test('honeypot blocks the submission and Default is never called', async ({ page
 
 test('submitting under the speed floor blocks, and Default is never called',
   async ({ page }) => {
-    await open(page);
-    await pickRestaurant(page, 'Tautog');
-    await chooseType(page);
-    await continueToStep2(page);
-    await fillContact(page);
+    // A frozen clock makes this deterministic. Racing real time is flaky: on a
+    // slow run the setup alone takes longer than the floor, and the trap
+    // correctly does not fire. Here the form only ever sees ~1.2s elapse,
+    // however long the machine actually takes.
+    await page.clock.install();
+    await page.setContent(HTML, { waitUntil: 'load' });
+    await page.waitForFunction(() => !!document.querySelector('[role="combobox"]'));
+    await page.clock.runFor(200);
 
-    // Deliberately skip the wait: submitting inside the floor IS the trap.
+    const input = page.locator('[role="combobox"]');
+    await input.click();
+    await input.fill('Tautog');
+    await page.clock.runFor(400);                 // debounce + stubbed lookup
+    await page.locator('[role="option"]').first().click();
+    await page.clock.runFor(200);                 // place details
+
+    await page.selectOption('select[name="business_type"]', 'Full-service restaurant');
+    await page.getByRole('button', { name: /continue/i }).click();
+    await fillContact(page);
+    await page.clock.runFor(400);
+
+    // ~1.2s of form-visible time: well inside the 3s floor
     await page.getByRole('button', { name: /book my demo/i }).click();
+    await page.clock.runFor(500);
 
     await expect(page.getByText(/in touch shortly/i)).toBeVisible();
     expect(await submissions(page)).toHaveLength(0);
+    expect(await events(page)).toContain('usv_form_blocked');
   });
 
 /* ── email ───────────────────────────────────────────────────────────────── */
@@ -434,4 +451,32 @@ test('a legitimate multi-part domain is accepted', async ({ page }) => {
   await page.fill('input[name="email"]', 'chef@my-diner.co.uk');
   await page.locator('input[name="first_name"]').click();
   await expect(page.getByText(/missing something/i)).not.toBeVisible();
+});
+
+test('each status option carries only its title, not the description too',
+  async ({ page }) => {
+    await open(page);
+    await pickRestaurant(page, 'Tautog');
+    await chooseType(page);
+    await continueToStep2(page);
+    await fillContact(page);
+    await submit(page);
+
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    const { optionLabels } = (await submissions(page))[0];
+
+    // Default shows these in its condition builder; the sub-copy must not bleed in
+    expect(optionLabels.brand_new_opening).toBe('We’re opening a brand-new spot');
+    expect(optionLabels.replacing_pos).toBe('We’re replacing our current POS');
+    expect(optionLabels.exploring).toBe('We’re just exploring');
+  });
+
+test('clicking the description still selects the card', async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await chooseType(page);
+  await continueToStep2(page);
+  // y=42 lands on the description row, not the title
+  await page.locator('[data-status="exploring"]').click({ position: { x: 120, y: 42 } });
+  await expect(page.locator('input[value="exploring"]')).toBeChecked();
 });

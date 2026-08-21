@@ -270,12 +270,16 @@
 /* --- radio cards ---------------------------------------------------------- */
 #usv-demo .usv-cards{display:grid;gap:10px;margin:0;padding:0;border:0;}
 #usv-demo .usv-card-opt{
-  display:flex;align-items:flex-start;gap:12px;
+  position:relative;
   border:1.5px solid var(--usv-line);border-radius:8px;
   padding:14px 15px;cursor:pointer;
   background:var(--usv-paper);
   transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease;
 }
+#usv-demo .usv-card-hit{display:flex;align-items:flex-start;gap:12px;cursor:pointer;}
+/* the label's hit area covers the whole card, so clicking the description
+   still selects — the description itself is inert text */
+#usv-demo .usv-card-hit::after{content:"";position:absolute;inset:0;border-radius:8px;}
 #usv-demo .usv-card-opt:hover{border-color:#c3bcb2;background:#fffdf7;}
 #usv-demo .usv-card-opt input{
   position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none;
@@ -296,7 +300,10 @@
 }
 #usv-demo .usv-card-opt:focus-within{box-shadow:0 0 0 3px rgba(255,205,4,.42);border-color:var(--usv-ink);}
 #usv-demo .usv-card-t{font-weight:700;font-size:15px;line-height:1.35;color:var(--usv-ink);}
-#usv-demo .usv-card-d{font-size:13px;line-height:1.4;color:var(--usv-ink-3);margin-top:2px;}
+#usv-demo .usv-card-d{
+  display:block;font-size:13px;line-height:1.4;color:var(--usv-ink-3);
+  margin-top:2px;padding-left:31px;pointer-events:none;
+}
 
 /* --- typo rescue ---------------------------------------------------------- */
 #usv-demo .usv-typo{
@@ -513,32 +520,35 @@
             <fieldset class="usv-cards">
               <legend class="usv-sr">Restaurant status</legend>
 
-              <label class="usv-card-opt" data-status="brand_new_opening">
-                <input type="radio" name="restaurant_status" value="brand_new_opening">
-                <span class="usv-mark" aria-hidden="true"></span>
-                <span>
+              <div class="usv-card-opt" data-status="brand_new_opening">
+                <input type="radio" id="usv-st-new" name="restaurant_status"
+                       value="brand_new_opening" aria-describedby="usv-sd-new">
+                <label class="usv-card-hit" for="usv-st-new">
+                  <span class="usv-mark" aria-hidden="true"></span>
                   <span class="usv-card-t">We&rsquo;re opening a brand-new spot</span>
-                  <span class="usv-card-d">Not open yet, or opening soon</span>
-                </span>
-              </label>
+                </label>
+                <span class="usv-card-d" id="usv-sd-new">Not open yet, or opening soon</span>
+              </div>
 
-              <label class="usv-card-opt" data-status="replacing_pos">
-                <input type="radio" name="restaurant_status" value="replacing_pos">
-                <span class="usv-mark" aria-hidden="true"></span>
-                <span>
+              <div class="usv-card-opt" data-status="replacing_pos">
+                <input type="radio" id="usv-st-pos" name="restaurant_status"
+                       value="replacing_pos" aria-describedby="usv-sd-pos">
+                <label class="usv-card-hit" for="usv-st-pos">
+                  <span class="usv-mark" aria-hidden="true"></span>
                   <span class="usv-card-t">We&rsquo;re replacing our current POS</span>
-                  <span class="usv-card-d">Open and running on something else</span>
-                </span>
-              </label>
+                </label>
+                <span class="usv-card-d" id="usv-sd-pos">Open and running on something else</span>
+              </div>
 
-              <label class="usv-card-opt" data-status="exploring">
-                <input type="radio" name="restaurant_status" value="exploring">
-                <span class="usv-mark" aria-hidden="true"></span>
-                <span>
+              <div class="usv-card-opt" data-status="exploring">
+                <input type="radio" id="usv-st-exp" name="restaurant_status"
+                       value="exploring" aria-describedby="usv-sd-exp">
+                <label class="usv-card-hit" for="usv-st-exp">
+                  <span class="usv-mark" aria-hidden="true"></span>
                   <span class="usv-card-t">We&rsquo;re just exploring</span>
-                  <span class="usv-card-d">Researching options, no firm timeline</span>
-                </span>
-              </label>
+                </label>
+                <span class="usv-card-d" id="usv-sd-exp">Researching options, no firm timeline</span>
+              </div>
             </fieldset>
             <p class="usv-err" id="usv-status-err">Pick the one that sounds like you.</p>
           </div>
@@ -701,12 +711,6 @@
       referrer             : 'Referrer'
     },
 
-    /* Service-model detail: dine-in, takeout, delivery, reservations, whether
-       they serve alcohol, and Google's editorial blurb. Genuinely useful for
-       qualifying a restaurant, but these are Places "Enterprise + Atmosphere"
-       fields and bill at a higher rate than everything above. Off by default —
-       flip to true and add the labels to FIELDS if you want them. */
-    PLACE_ATMOSPHERE : false,
 
     /* -- Behaviour ---------------------------------------------------------- */
     REGIONS            : ['us', 'ca'],   // Places country filter
@@ -1135,8 +1139,8 @@
     }
 
     /* One details call closes the autocomplete session, which is what keeps
-       the session itself free. Everything here bills at the same Places tier
-       the rating/website/phone fields already put us in, so hours, category,
+       the session free. Everything here sits in the same Places tier the
+       rating/website/phone fields already put us in, so hours, category,
        coordinates and the Maps link ride along at no extra cost. */
     var FIELDS = ['id', 'displayName', 'formattedAddress', 'addressComponents',
                   'websiteURI', 'nationalPhoneNumber', 'rating', 'userRatingCount',
@@ -1144,12 +1148,6 @@
                   'regularOpeningHours', 'primaryTypeDisplayName',
                   'googleMapsURI', 'utcOffsetMinutes'];
 
-    if (CFG.PLACE_ATMOSPHERE) {
-      FIELDS = FIELDS.concat(['dineIn', 'takeout', 'delivery', 'reservable',
-                              'servesBeer', 'servesWine', 'servesCocktails',
-                              'servesBreakfast', 'servesLunch', 'servesDinner',
-                              'editorialSummary']);
-    }
 
     place.fetchFields({ fields: FIELDS }).then(function () {
       S.place    = place;
@@ -1745,20 +1743,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     v.place_timezone_offset = place && typeof place.utcOffsetMinutes === 'number'
                                 ? String(place.utcOffsetMinutes) : '';
 
-    /* Only present when CFG.PLACE_ATMOSPHERE is on. Add matching labels to
-       CFG.FIELDS for any of these you want Default to receive. */
-    if (CFG.PLACE_ATMOSPHERE && place) {
-      var atmos = ['dineIn', 'takeout', 'delivery', 'reservable', 'servesBeer',
-                   'servesWine', 'servesCocktails', 'servesBreakfast',
-                   'servesLunch', 'servesDinner'], a;
-      for (a = 0; a < atmos.length; a++) {
-        if (typeof place[atmos[a]] === 'boolean') {
-          v['place_' + atmos[a].replace(/[A-Z]/g, function (c) { return '_' + c.toLowerCase(); })]
-            = String(place[atmos[a]]);
-        }
-      }
-      if (place.editorialSummary) v.place_summary = String(place.editorialSummary);
-    }
 
     /* All four of these are scoring signals. None of them gate anyone. */
     v.email_type         = classifyEmail(domain);          /* business | free | disposable */
