@@ -225,6 +225,13 @@ function minifyHtml(html) {
  */
 function shortenTokens(parts) {
   const TOKEN = /(--)?usv-[a-z0-9-]*/g;
+
+  /* The <form> id is the one name that must not move. Default surfaces it as
+     the "Connected HTML Form ID" and sends it as html_form_id, and the short
+     names are assigned in encounter order — so adding markup above the form
+     would silently rename it. Six extra characters buys a stable identifier. */
+  const KEEP = new Set(["usv-form"]);
+
   const seen = new Map();
   let counter = 0;
 
@@ -237,6 +244,7 @@ function shortenTokens(parts) {
 
   for (const text of parts) {
     for (const m of text.matchAll(TOKEN)) {
+      if (KEEP.has(m[0])) { seen.set(m[0], m[0]); continue; }
       if (!seen.has(m[0])) seen.set(m[0], (m[1] ? '--' : '') + nextName());
     }
   }
