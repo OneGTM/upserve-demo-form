@@ -453,38 +453,8 @@
           <p class="usv-sub">So we can send you to the right place.</p>
 
           <div class="usv-field" id="usv-f-visitor">
-            <fieldset class="usv-cards">
+            <fieldset class="usv-cards" data-cards="visitor">
               <legend class="usv-sr">Who are you</legend>
-
-              <div class="usv-card-opt" data-visitor="prospect">
-                <input type="radio" id="usv-v-pro" name="visitor_type" value="prospect"
-                       aria-describedby="usv-vd-pro">
-                <label class="usv-card-hit" for="usv-v-pro">
-                  <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">I&rsquo;m new to Upserve, or coming back</span>
-                </label>
-                <span class="usv-card-d" id="usv-vd-pro">Exploring, comparing, or ready to switch</span>
-              </div>
-
-              <div class="usv-card-opt" data-visitor="current_customer">
-                <input type="radio" id="usv-v-cur" name="visitor_type" value="current_customer"
-                       aria-describedby="usv-vd-cur">
-                <label class="usv-card-hit" for="usv-v-cur">
-                  <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">I&rsquo;m already an Upserve customer</span>
-                </label>
-                <span class="usv-card-d" id="usv-vd-cur">I need help, another location, or an upgrade</span>
-              </div>
-
-              <div class="usv-card-opt" data-visitor="diner">
-                <input type="radio" id="usv-v-din" name="visitor_type" value="diner"
-                       aria-describedby="usv-vd-din">
-                <label class="usv-card-hit" for="usv-v-din">
-                  <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">I ate at a restaurant</span>
-                </label>
-                <span class="usv-card-d" id="usv-vd-din">Looking for a receipt, a refund, or the restaurant</span>
-              </div>
             </fieldset>
             <p class="usv-err" id="usv-visitor-err">Pick the one that fits.</p>
           </div>
@@ -563,38 +533,8 @@
           <p class="usv-sub" id="usv-sub2">This decides who you talk to &mdash; and how fast.</p>
 
           <div class="usv-field" id="usv-f-status">
-            <fieldset class="usv-cards">
+            <fieldset class="usv-cards" data-cards="status">
               <legend class="usv-sr">Restaurant status</legend>
-
-              <div class="usv-card-opt" data-status="brand_new_opening">
-                <input type="radio" id="usv-st-new" name="restaurant_status"
-                       value="brand_new_opening" aria-describedby="usv-sd-new">
-                <label class="usv-card-hit" for="usv-st-new">
-                  <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">We&rsquo;re opening a brand-new spot</span>
-                </label>
-                <span class="usv-card-d" id="usv-sd-new">Not open yet, or opening soon</span>
-              </div>
-
-              <div class="usv-card-opt" data-status="replacing_pos">
-                <input type="radio" id="usv-st-pos" name="restaurant_status"
-                       value="replacing_pos" aria-describedby="usv-sd-pos">
-                <label class="usv-card-hit" for="usv-st-pos">
-                  <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">We&rsquo;re replacing our current POS</span>
-                </label>
-                <span class="usv-card-d" id="usv-sd-pos">Open and running on something else</span>
-              </div>
-
-              <div class="usv-card-opt" data-status="exploring">
-                <input type="radio" id="usv-st-exp" name="restaurant_status"
-                       value="exploring" aria-describedby="usv-sd-exp">
-                <label class="usv-card-hit" for="usv-st-exp">
-                  <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">We&rsquo;re just exploring</span>
-                </label>
-                <span class="usv-card-d" id="usv-sd-exp">Researching options, no firm timeline</span>
-              </div>
             </fieldset>
             <p class="usv-err" id="usv-status-err">Pick the one that sounds like you.</p>
           </div>
@@ -603,58 +543,8 @@
                Only one of these is ever visible, and only the visible one is
                validated or submitted. -->
           <div class="usv-field" id="usv-f-help" hidden>
-            <fieldset class="usv-cards">
+            <fieldset class="usv-cards" data-cards="help">
               <legend class="usv-sr">What do you need help with</legend>
-
-              <div class="usv-card-opt" data-help="add_location">
-                <input type="radio" id="usv-hp-add" name="help_topic" value="add_location"
-                       aria-describedby="usv-hd-add">
-                <label class="usv-card-hit" for="usv-hp-add">
-                  <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">Add a new location</span>
-                </label>
-                <span class="usv-card-d" id="usv-hd-add">Opening somewhere new</span>
-              </div>
-
-              <div class="usv-card-opt" data-help="expand_location">
-                <input type="radio" id="usv-hp-exp" name="help_topic" value="expand_location"
-                       aria-describedby="usv-hd-exp">
-                <label class="usv-card-hit" for="usv-hp-exp">
-                  <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">Expand an existing location</span>
-                </label>
-                <span class="usv-card-d" id="usv-hd-exp">More terminals, more features, more seats</span>
-              </div>
-
-              <div class="usv-card-opt" data-help="product_help">
-                <input type="radio" id="usv-hp-prd" name="help_topic" value="product_help"
-                       aria-describedby="usv-hd-prd">
-                <label class="usv-card-hit" for="usv-hp-prd">
-                  <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">Product help</span>
-                </label>
-                <span class="usv-card-d" id="usv-hd-prd">Something isn&rsquo;t working the way it should</span>
-              </div>
-
-              <div class="usv-card-opt" data-help="account_billing">
-                <input type="radio" id="usv-hp-bil" name="help_topic" value="account_billing"
-                       aria-describedby="usv-hd-bil">
-                <label class="usv-card-hit" for="usv-hp-bil">
-                  <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">Account or billing</span>
-                </label>
-                <span class="usv-card-d" id="usv-hd-bil">Invoices, payments, or your plan</span>
-              </div>
-
-              <div class="usv-card-opt" data-help="other">
-                <input type="radio" id="usv-hp-oth" name="help_topic" value="other"
-                       aria-describedby="usv-hd-oth">
-                <label class="usv-card-hit" for="usv-hp-oth">
-                  <span class="usv-mark" aria-hidden="true"></span>
-                  <span class="usv-card-t">Something else</span>
-                </label>
-                <span class="usv-card-d" id="usv-hd-oth">We&rsquo;ll point you the right way</span>
-              </div>
             </fieldset>
             <p class="usv-err" id="usv-help-err">Let us know what you need.</p>
           </div>
@@ -928,6 +818,61 @@
     routing      : '',
     demo         : false
   };
+
+  /* =========================================================================
+     Radio cards
+
+     Eleven cards across three questions, identical but for three strings each.
+     As markup that was 3.8k of scaffolding around 0.7k of actual copy, so it
+     lives here as a table instead — smaller in the embed, and easier to read
+     and edit than eleven near-identical blocks.
+
+         value ; title ; description
+
+     These strings are our own config, never user input, so they are safe to
+     interpolate. Anything a visitor types still goes through textContent.
+     ========================================================================= */
+  var CARDS = {
+    visitor: ['visitor_type',
+      'prospect;I\u2019m new to Upserve, or coming back;Exploring, comparing, or ready to switch',
+      'current_customer;I\u2019m already an Upserve customer;I need help, another location, or an upgrade',
+      'diner;I ate at a restaurant;Looking for a receipt, a refund, or the restaurant'],
+
+    status: ['restaurant_status',
+      'brand_new_opening;We\u2019re opening a brand-new spot;Not open yet, or opening soon',
+      'replacing_pos;We\u2019re replacing our current POS;Open and running on something else',
+      'exploring;We\u2019re just exploring;Researching options, no firm timeline'],
+
+    help: ['help_topic',
+      'add_location;Add a new location;Opening somewhere new',
+      'expand_location;Expand an existing location;More terminals, more features, more seats',
+      'product_help;Product help;Something isn\u2019t working the way it should',
+      'account_billing;Account or billing;Invoices, payments, or your plan',
+      'other;Something else;We\u2019ll point you the right way']
+  };
+
+  (function buildCards() {
+    var g, box, rows, name, i, p, id, out;
+    for (g in CARDS) {
+      box = root.querySelector('fieldset[data-cards="' + g + '"]');
+      if (!box) continue;
+      rows = CARDS[g];
+      name = rows[0];
+      out = '';
+      for (i = 1; i < rows.length; i++) {
+        p = rows[i].split(';');
+        id = 'usv-c' + g + i;
+        out += '<div class="usv-card-opt" data-' + g + '="' + p[0] + '">' +
+          '<input type="radio" id="' + id + '" name="' + name + '" value="' + p[0] +
+          '" aria-describedby="' + id + 'd">' +
+          '<label class="usv-card-hit" for="' + id + '">' +
+          '<span class="usv-mark" aria-hidden="true"></span>' +
+          '<span class="usv-card-t">' + p[1] + '</span></label>' +
+          '<span class="usv-card-d" id="' + id + 'd">' + p[2] + '</span></div>';
+      }
+      box.insertAdjacentHTML('beforeend', out);
+    }
+  }());
 
   /* =========================================================================
      UTM — first touch persisted, last touch wins on the field itself

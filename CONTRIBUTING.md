@@ -60,6 +60,22 @@ The suite drives the built files in a real browser with Default and Google
 stubbed, so it never touches a live service. For a manual look, open
 `preview.html` with `?demo=1`.
 
+## Editing the radio cards
+
+The eleven option cards are a table in the script, not markup:
+
+```js
+status: ['restaurant_status',
+  'brand_new_opening;We’re opening a brand-new spot;Not open yet, or opening soon',
+  ...
+```
+
+`value ; title ; description`. Add a row and it renders. As markup this was
+3.8k of scaffolding around 0.7k of copy.
+
+If you add a value, add its routing in `CFG.ROUTING` or `CFG.ROUTING_HELP` —
+an unmapped value falls back to SDR or SUPPORT.
+
 ## Field names are a contract
 
 Default maps its own fields to the `name` attributes on this form. Renaming an

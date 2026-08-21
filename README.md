@@ -486,9 +486,9 @@ the brand black (`#474747`, `#737373`) rather than off-palette hues.
 - **Mobile viewport.** The layout stacks below 480px, inputs are 16px so iOS
   doesn't zoom on focus, and tap targets measure ~51px. Verified via computed
   styles and the grid rule; worth one pass on a real handset before launch.
-- **Size.** Two embeds: part 1 is 22.7k, part 2 is 33.8k, both well inside the
+- **Size.** Two embeds: part 1 is 18.5k, part 2 is 35.4k, both well inside the
   50,000 cap. `build.js` collapses back to a single `embed.html` if the form
-  ever fits again. This is the binding constraint now: a large new section will need
+  ever fits again — it is currently ~3.9k over that. This is the binding constraint now: a large new section will need
   something trimmed first. `build.js` fails loudly rather than letting Webflow
   truncate silently. A large new section may need something trimmed; `build.js` will
   tell you rather than letting Webflow truncate silently.
