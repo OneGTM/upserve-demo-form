@@ -284,7 +284,7 @@ const embed =
   '\n<script>' + outJs + '</script>\n';
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
-fs.writeFileSync(path.join(OUT_DIR, 'embed.html'), embed);
+if (embed.length <= EMBED_LIMIT) fs.writeFileSync(path.join(OUT_DIR, 'embed.html'), embed);
 
 /* Webflow caps ONE Code Embed at 50,000 characters. When the form outgrows
    that, the sanctioned workaround is a second embed — so emit the split
@@ -311,8 +311,13 @@ if (usesSplit) {
 
   fs.writeFileSync(path.join(OUT_DIR, 'embed-part1.html'), head);
   fs.writeFileSync(path.join(OUT_DIR, 'embed-part2.html'), tail);
-  module.exports = null;
   global.__usvSplit = [head.length, tail.length];
+
+  /* embed.html is over the cap and must not be pasted, so it does not get to
+     sit in webflow/ looking like the thing to paste. The parts are the
+     artifact; concatenating them reproduces it exactly if ever needed. */
+  const whole = path.join(OUT_DIR, 'embed.html');
+  if (fs.existsSync(whole)) fs.unlinkSync(whole);
 } else {
   for (const stale of ['embed-part1.html', 'embed-part2.html']) {
     const q = path.join(OUT_DIR, stale);
@@ -615,16 +620,16 @@ let ok = true;
 if (global.__usvSplit) {
   const [a, b] = global.__usvSplit;
   ok = a <= EMBED_LIMIT && b <= EMBED_LIMIT;
-  console.log('  embed.html is ' + embed.length + ' chars — over the 50,000 Webflow cap,');
-  console.log('  so it is split. Paste BOTH, part 1 first:\n');
+  console.log('  PASTE THESE TWO into Webflow, part 1 first:\n');
   console.log('  ' + (a <= EMBED_LIMIT ? 'ok  ' : 'OVER') + '  webflow/embed-part1.html'.padEnd(30) +
               String(a).padStart(6) + ' / ' + EMBED_LIMIT);
   console.log('  ' + (b <= EMBED_LIMIT ? 'ok  ' : 'OVER') + '  webflow/embed-part2.html'.padEnd(30) +
               String(b).padStart(6) + ' / ' + EMBED_LIMIT);
 } else {
   const spare = EMBED_LIMIT - embed.length;
+  console.log('  PASTE THIS into Webflow:\n');
   console.log('  ok    webflow/embed.html'.padEnd(32) + String(embed.length).padStart(6) +
-              ' / ' + EMBED_LIMIT + '  (' + spare + ' spare, one paste)');
+              ' / ' + EMBED_LIMIT + '  (' + spare + ' spare)');
 }
 console.log('  ok    preview.html'.padEnd(32) + String(preview.length).padStart(6) + ' chars');
 console.log('  ok    prototype.html\n');

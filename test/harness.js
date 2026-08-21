@@ -148,17 +148,21 @@ const STUB = `<script>
 
 /** The page under test: real embed + stubs. */
 function page() {
+  // The build emits ONE of two shapes: a single embed.html when it fits under
+  // Webflow's cap, or two parts when it doesn't. Test whichever exists — that
+  // is what actually gets pasted.
   const embedPath = path.join(ROOT, 'webflow', 'embed.html');
-  if (!fs.existsSync(embedPath)) {
-    throw new Error('webflow/embed.html is missing — run `node build.js` first');
-  }
-
-  // When the build splits for Webflow, test the SPLIT — that is what actually
-  // gets pasted. Concatenated here exactly as two adjacent embeds render.
   const p1 = path.join(ROOT, 'webflow', 'embed-part1.html');
   const p2 = path.join(ROOT, 'webflow', 'embed-part2.html');
   const split = fs.existsSync(p1) && fs.existsSync(p2);
+
+  if (!split && !fs.existsSync(embedPath)) {
+    throw new Error('No build output in webflow/ — run `node build.js` first');
+  }
   // Neutralise whatever key the local build injected; tests never call Google.
+  if (!split && !fs.existsSync(embedPath)) {
+    throw new Error('No build output — run \`node build.js\` first');
+  }
   const raw = split
     ? fs.readFileSync(p1, 'utf8') + '\n' + fs.readFileSync(p2, 'utf8')
     : fs.readFileSync(embedPath, 'utf8');

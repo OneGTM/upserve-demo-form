@@ -27,7 +27,9 @@ somewhere useful, and neither one creates anything in Default.
 
 ## Install in Webflow
 
-`node build.js` prints exactly which file(s) to paste. Right now the form is
+`node build.js` prints exactly which file(s) to paste, and only writes files
+that are actually pasteable — if the form is over the cap you will not find a
+single `embed.html` sitting there to paste by mistake. Right now the form is
 past Webflow's 50,000-character cap for a single embed, so it builds as two:
 
 1. Open the demo page in the Designer.
