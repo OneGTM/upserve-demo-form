@@ -35,11 +35,12 @@ const STUB = `<script>
   document.addEventListener('submit', function (e) {
     var f = e.target;
     if (!f.hasAttribute || !f.hasAttribute('data-default-form-id')) return;
-    var fields = {}, labels = {}, optionLabels = {}, i, el, fs_, lab;
+    var fields = {}, labels = {}, optionLabels = {}, optionsByName = {}, i, el, fs_, lab;
     for (i = 0; i < f.elements.length; i++) {
       el = f.elements[i];
       if (!el.name || el.type === 'password') continue;
       if (el.type === 'radio') {
+        (optionsByName[el.name] = optionsByName[el.name] || []).push(el.value);
         optionLabels[el.value] =
           ((el.labels && el.labels[0] && el.labels[0].textContent) || '')
             .replace(/\\s+/g, ' ').trim();
@@ -55,7 +56,7 @@ const STUB = `<script>
     }
     window.__submissions.push({
       form_id: f.getAttribute('data-default-form-id'),
-      fields: fields, labels: labels, optionLabels: optionLabels
+      fields: fields, labels: labels, optionLabels: optionLabels, optionsByName: optionsByName
     });
     setTimeout(function () { CB.onSuccess && CB.onSuccess({ success: true }); }, 20);
   });
@@ -160,9 +161,6 @@ function page() {
     throw new Error('No build output in webflow/ — run `node build.js` first');
   }
   // Neutralise whatever key the local build injected; tests never call Google.
-  if (!split && !fs.existsSync(embedPath)) {
-    throw new Error('No build output — run \`node build.js\` first');
-  }
   const raw = split
     ? fs.readFileSync(p1, 'utf8') + '\n' + fs.readFileSync(p2, 'utf8')
     : fs.readFileSync(embedPath, 'utf8');

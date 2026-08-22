@@ -467,7 +467,7 @@
 
           <div class="usv-field" id="usv-f-visitor">
             <fieldset class="usv-cards" data-cards="visitor">
-              <legend class="usv-sr">Who are you</legend>
+              <legend class="usv-sr">Who they are</legend>
             </fieldset>
             <p class="usv-err" id="usv-visitor-err">Pick the one that fits.</p>
           </div>
@@ -708,7 +708,6 @@
        here gets an explicit label. Edit the right-hand side freely; the left
        side is the wire name and should stay stable once Default has mapped it. */
     FIELDS : {
-      visitor_type         : 'Who they are',
       routing_owner        : 'Routing owner (AE or SDR)',
       place_source         : 'Place source (google, manual, not listed)',
       place_verified       : 'Place verified on Google',
@@ -1921,7 +1920,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     if (place && place.displayName) nameInput.value = String(place.displayName);
 
     var v = {};
-    v.visitor_type   = S.visitor || 'prospect';
     v.routing_owner  = isCustomer()
       ? (CFG.ROUTING_HELP[helpVal] || 'SUPPORT')
       : (CFG.ROUTING[statusVal] || 'SDR');
@@ -1984,9 +1982,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     /* The traps have done their job by the time we get here. Drop their names
        so Default doesn't receive two junk questions on every real lead —
        nameless inputs are skipped when it reads the form. */
-    var vis = root.querySelectorAll('input[name="visitor_type"]'), vn;
-    for (vn = 0; vn < vis.length; vn++) vis[vn].removeAttribute('name');
-
     /* Whichever question was not asked must not reach Default at all —
        an empty restaurant_status on an AM lead reads as missing data. */
     var unused = root.querySelectorAll(isCustomer()

@@ -665,3 +665,25 @@ test('the two branches submit the same shape apart from their own question',
     expect(onlyProspect).toEqual(['restaurant_status']);
     expect(onlyCustomer).toEqual(['help_topic']);
   });
+
+test('all three questions arrive as option groups Default can branch on',
+  async ({ page }) => {
+    await open(page, 'prospect');
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await page.locator('input[value="exploring"]').check({ force: true });
+    await fillContact(page);
+    await submit(page);
+
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    const { optionsByName, labels } = (await submissions(page))[0];
+
+    // a hidden input carries a value but no options, so Default has nothing to
+    // pick from when building a condition — every question must be a real group
+    expect(optionsByName.visitor_type).toEqual(
+      ['prospect', 'current_customer', 'diner']);
+    expect(optionsByName.restaurant_status).toEqual(
+      ['brand_new_opening', 'replacing_pos', 'exploring']);
+
+    expect(labels.visitor_type).toBe('Who they are');
+  });
