@@ -463,7 +463,6 @@
         <section class="usv-panel is-on" id="usv-step0" aria-labelledby="usv-h0">
           <p class="usv-eyebrow">Step 1 of 3</p>
           <h2 class="usv-h" id="usv-h0">First &mdash; who are <em>you</em>?</h2>
-          <p class="usv-sub">So we can send you to the right place.</p>
 
           <div class="usv-field" id="usv-f-visitor">
             <fieldset class="usv-cards" data-cards="visitor">
@@ -487,7 +486,6 @@
         <section class="usv-panel" id="usv-step1" aria-labelledby="usv-h1" hidden>
           <p class="usv-eyebrow">Step 2 of 3</p>
           <h2 class="usv-h" id="usv-h1">Let&rsquo;s find <em>your</em> restaurant.</h2>
-          <p class="usv-sub">Start typing and pick your spot &mdash; we&rsquo;ll pull the rest so you don&rsquo;t have to.</p>
 
           <div class="usv-field" id="usv-f-name">
             <label class="usv-label" for="usv-name">Restaurant or business name<span class="usv-req">*</span></label>
@@ -543,7 +541,6 @@
           </div>
 
           <h2 class="usv-h" id="usv-h2">Where are you <em>today</em>?</h2>
-          <p class="usv-sub" id="usv-sub2">This decides who you talk to &mdash; and how fast.</p>
 
           <div class="usv-field" id="usv-f-status">
             <fieldset class="usv-cards" data-cards="status">
@@ -598,7 +595,7 @@
             <label class="usv-label" for="usv-phone">Mobile phone<span class="usv-req">*</span></label>
             <input class="usv-input" id="usv-phone" name="phone" type="tel"
                    autocomplete="tel" inputmode="tel" placeholder="(305) 555-0142">
-            <p class="usv-help">So we can text you the confirmation &mdash; no cold calls.</p>
+            <p class="usv-help">For your confirmation text. No cold calls.</p>
             <p class="usv-err" id="usv-phone-err">Enter a valid mobile number.</p>
           </div>
 
@@ -609,7 +606,7 @@
             </button>
             <button type="button" class="usv-btn usv-btn-ghost" id="usv-back">&larr; Back</button>
             <p class="usv-fine">
-              We&rsquo;ll only use this to set up your demo. No spam, ever.
+              Only used to set up your demo.
             </p>
           </div>
         </section>
@@ -630,12 +627,9 @@
       <section class="usv-panel" id="usv-out-diner" aria-live="polite" hidden>
         <p class="usv-eyebrow">You want the restaurant</p>
         <h2 class="usv-h">We make the software, not the <em>meal</em>.</h2>
-        <p class="usv-sub">Upserve is the point-of-sale system some restaurants use to
-          take payments. We can&rsquo;t see your bill, your booking or your order &mdash;
-          only the restaurant can.</p>
-        <p class="usv-sub">For a receipt, a refund, or anything about your visit, contact
-          the restaurant directly. If a charge looks unfamiliar on your statement, it will
-          usually appear under the restaurant&rsquo;s name rather than ours.</p>
+        <p class="usv-sub">Upserve makes the software a restaurant uses to take payments
+          &mdash; we can&rsquo;t see your bill, booking or order. For a receipt, a refund,
+          or anything about your visit, contact the restaurant directly.</p>
         <div class="usv-actions">
           <button type="button" class="usv-btn usv-btn-ghost" id="usv-diner-back">
             &larr; That&rsquo;s not me, go back
@@ -846,21 +840,21 @@
      ========================================================================= */
   var CARDS = {
     visitor: ['visitor_type',
-      'prospect;I\u2019m new to Upserve, or coming back;Exploring, comparing, or ready to switch',
-      'current_customer;I\u2019m already an Upserve customer;I need help, another location, or an upgrade',
-      'diner;I ate at a restaurant;Looking for a receipt, a refund, or the restaurant'],
+      'prospect;I\u2019m new to Upserve, or coming back;Exploring, comparing, or switching',
+      'current_customer;I\u2019m already an Upserve customer;Help, another location, or an upgrade',
+      'diner;I ate at a restaurant;A receipt, a refund, or the restaurant'],
 
     status: ['restaurant_status',
-      'brand_new_opening;We\u2019re opening a brand-new spot;Not open yet, or opening soon',
-      'replacing_pos;We\u2019re replacing our current POS;Open and running on something else',
-      'exploring;We\u2019re just exploring;Researching options, no firm timeline'],
+      'brand_new_opening;We\u2019re opening a brand-new spot;Not open yet',
+      'replacing_pos;We\u2019re replacing our current POS;Open on something else',
+      'exploring;We\u2019re just exploring;No firm timeline'],
 
     help: ['help_topic',
-      'add_location;Add a new location;Opening somewhere new',
-      'expand_location;Expand an existing location;More terminals, more features, more seats',
-      'product_help;Product help;Something isn\u2019t working the way it should',
-      'account_billing;Account or billing;Invoices, payments, or your plan',
-      'other;Something else;We\u2019ll point you the right way']
+      'add_location;Add a new location;',
+      'expand_location;Expand an existing location;',
+      'product_help;Product help;',
+      'account_billing;Account or billing;',
+      'other;Something else;']
   };
 
   (function buildCards() {
@@ -876,11 +870,12 @@
         id = 'usv-c' + g + i;
         out += '<div class="usv-card-opt" data-' + g + '="' + p[0] + '">' +
           '<input type="radio" id="' + id + '" name="' + name + '" value="' + p[0] +
-          '" aria-describedby="' + id + 'd">' +
+          (p[2] ? '" aria-describedby="' + id + 'd">' : '">') +
           '<label class="usv-card-hit" for="' + id + '">' +
           '<span class="usv-mark" aria-hidden="true"></span>' +
           '<span class="usv-card-t">' + p[1] + '</span></label>' +
-          '<span class="usv-card-d" id="' + id + 'd">' + p[2] + '</span></div>';
+          (p[2] ? '<span class="usv-card-d" id="' + id + 'd">' + p[2] + '</span>' : '') +
+          '</div>';
       }
       box.insertAdjacentHTML('beforeend', out);
     }
@@ -1769,8 +1764,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     $('usv-f-status').hidden = c;
     $('usv-f-help').hidden = !c;
     txt($('usv-h2'), c ? 'What do you need help with?' : 'Where are you today?');
-    txt($('usv-sub2'), c ? 'This decides who picks it up.'
-                         : 'This decides who you talk to \u2014 and how fast.');
   }
 
   var visitorInputs = root.querySelectorAll('input[name="visitor_type"]');
