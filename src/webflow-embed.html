@@ -784,10 +784,14 @@
     /* Where an existing customer actually gets helped. These are the only
        thing on the off-ramp that has to be right — a wrong number sends a
        frustrated customer back to this form. Check them before launch. */
+    /* All three are taken from upserve.com's own footer. There is no support
+       phone line to list: the Help Center routes to 24/7 chat in the browser
+       or the POS app, which is what "reach someone right now" means here. */
     SUPPORT : [
-      ['Help Center',   'https://help.upserve.com',   'Guides and troubleshooting'],
-      ['Sign in',       'https://upserve.com/login',  'Your account and billing'],
-      ['Call support',  'tel:+18556643887',           '(855) 664-3887']
+      ['Help Center', 'https://help.upserve.com/', 'Guides, and 24/7 live chat'],
+      ['Sign in',     'https://hq.upserve.com/',   'Your account and POS'],
+      ['Billing',     'https://billing.stripe.com/p/login/eVaaHk4Wi1ib8mcaEE',
+                                                   'Invoices and payment method']
     ],
 
     /* -- Behaviour ---------------------------------------------------------- */
