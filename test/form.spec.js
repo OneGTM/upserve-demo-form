@@ -66,7 +66,14 @@ async function pickRestaurant(page, query) {
   return label;
 }
 
+/** Business type is required on the finder step, so answer it on the way past. */
+async function chooseBusinessType(page, value = "full_service") {
+  const sel = page.locator('select[name="business_type"]');
+  if (await sel.isVisible()) await sel.selectOption(value);
+}
+
 async function continueToStep2(page) {
+  await chooseBusinessType(page);
   await clickContinue(page);
   await expect(page.locator('input[name="first_name"]')).toBeVisible();
 }
@@ -207,6 +214,7 @@ test('submitting under the speed floor blocks, and Default is never called',
     await page.locator('[role="option"]').first().click();
     await page.clock.runFor(200);                 // place details
 
+    await chooseBusinessType(page);
     await clickContinue(page);
     await fillContact(page);
     await page.clock.runFor(400);
@@ -845,3 +853,78 @@ test('no step between triage and submit is a dead end', async ({ page }) => {
   await continueToStep2(page);
   await expect(page.getByRole('button', { name: backish })).toHaveCount(1);   // details
 });
+
+/* ── what we take from Places ────────────────────────────────────────────── */
+
+test('every Places field we pay for reaches Default', async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await fillContact(page);
+  await submit(page);
+
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  const { fields, labels } = (await submissions(page))[0];
+
+  // restored after being dropped in an earlier pass
+  expect(fields.place_types).toContain('restaurant');
+  expect(labels.place_types).toBe('Google place types');
+
+  // machine value, not just the human-readable display name
+  expect(fields.place_primary_type).toBe('seafood_restaurant');
+  expect(fields.place_category).toBe('Seafood restaurant');
+
+  // same shape as the lead's own number
+  expect(fields.place_phone_e164).toBe('+14018492900');
+  expect(fields.place_phone).toBe('(401) 849-2900');
+
+  expect(fields.place_price_range).toBe('20-40 USD');
+  expect(fields.place_service_area_only).toBe('false');
+});
+
+test('a place missing the optional Places data still submits a full shape',
+  async ({ page }) => {
+    // Just Wing It has no website and the stub gives it no priceRange
+    await open(page);
+    await pickRestaurant(page, 'Just Wing');
+    await continueToStep2(page);
+    await fillContact(page, { email: 'owner@justwingit.com' });
+    await submit(page);
+
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    const { fields } = (await submissions(page))[0];
+    for (const k of ['place_types', 'place_primary_type', 'place_phone_e164',
+                     'place_price_range', 'place_service_area_only']) {
+      expect(fields, k + ' must be present even when blank').toHaveProperty(k);
+    }
+  });
+
+/* ── business type ───────────────────────────────────────────────────────── */
+
+test('business type is required before the details step', async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await clickContinue(page);                       // without answering it
+  await expect(page.locator('input[name="first_name"]')).not.toBeVisible();
+  await expect(page.getByText(/choose the closest match/i)).toBeVisible();
+});
+
+test('business type reaches Default as an option group including Non-restaurant',
+  async ({ page }) => {
+    await open(page);
+    await pickRestaurant(page, 'Tautog');
+    await chooseBusinessType(page, 'non_restaurant');
+    await clickContinue(page);
+    await fillContact(page);
+    await submit(page);
+
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    const { fields, labels, optionsByName } = (await submissions(page))[0];
+    expect(fields.business_type).toBe('non_restaurant');
+    // the asterisk is part of the label Default already has on file, so this
+    // re-attaches to the existing field instead of creating a second one
+    expect(labels.business_type).toBe('What kind of business is it?*');
+    expect(optionsByName.business_type).toEqual([
+      '', 'full_service', 'quick_service', 'fine_dining', 'enterprise', 'non_restaurant'
+    ]);
+  });

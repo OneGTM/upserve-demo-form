@@ -199,6 +199,10 @@
 }
 #usv-demo .usv-newbtn:hover{background:var(--usv-yellow);}
 #usv-demo .usv-newbtn:focus-visible{outline:2px solid var(--usv-ink);outline-offset:2px;}
+#usv-demo .usv-select{
+  padding-right:38px;cursor:pointer;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%23737373' stroke-width='1.8' fill='none'/%3E%3C/svg%3E") no-repeat right 14px center/12px 8px,var(--usv-paper);
+}
 #usv-demo .usv-help{
   font-size:13px;line-height:1.45;color:var(--usv-ink-3);
   margin:7px 0 0;
@@ -545,6 +549,22 @@
             <p class="usv-err" id="usv-name-err">Tell us your restaurant or business name.</p>
           </div>
 
+          <!-- Doubles as the bot check: a required choice with no "Other" to
+               fall through to. Kept on this step so the details step, which
+               is already the tall one, does not grow. -->
+          <div class="usv-field" id="usv-f-btype">
+            <label class="usv-label" for="usv-btype">What kind of business is it?<span class="usv-req">*</span></label>
+            <select class="usv-input usv-select" id="usv-btype" name="business_type">
+              <option value="">Select one&hellip;</option>
+              <option value="full_service">Full service</option>
+              <option value="quick_service">Quick service</option>
+              <option value="fine_dining">Fine dining</option>
+              <option value="enterprise">Enterprise or multi-location</option>
+              <option value="non_restaurant">Non-restaurant</option>
+            </select>
+            <p class="usv-err" id="usv-btype-err">Choose the closest match.</p>
+          </div>
+
 
           <div class="usv-actions">
             <button type="button" class="usv-btn" id="usv-next">
@@ -758,6 +778,11 @@
       place_website        : 'Restaurant website',
       place_phone          : 'Restaurant phone (from Google)',
       place_category       : 'Restaurant category (from Google)',
+      place_primary_type   : 'Google primary type',
+      place_types          : 'Google place types',
+      place_service_area_only: 'Delivery or service area only (no storefront)',
+      place_phone_e164     : 'Restaurant phone (E.164)',
+      place_price_range    : 'Google price range',
       place_hours          : 'Opening hours',
       place_rating         : 'Google rating',
       place_review_count   : 'Google review count',
@@ -1127,6 +1152,7 @@
 
   /* --- combobox DOM --------------------------------------------------------- */
   var nameInput = $('usv-name');
+  var btypeInput = $('usv-btype');
   var listbox   = $('usv-listbox');
   var nameIcon  = $('usv-name-icon');
 
@@ -1299,10 +1325,11 @@
        rating/website/phone fields already put us in, so hours, category,
        coordinates and the Maps link ride along at no extra cost. */
     var FIELDS = ['id', 'displayName', 'formattedAddress', 'addressComponents',
-                  'websiteURI', 'nationalPhoneNumber', 'rating', 'userRatingCount',
-                  'priceLevel', 'businessStatus', 'location',
-                  'regularOpeningHours', 'primaryTypeDisplayName',
-                  'googleMapsURI', 'utcOffsetMinutes'];
+                  'websiteURI', 'nationalPhoneNumber', 'internationalPhoneNumber',
+                  'rating', 'userRatingCount', 'priceLevel', 'priceRange',
+                  'businessStatus', 'location', 'regularOpeningHours',
+                  'primaryTypeDisplayName', 'primaryType', 'types',
+                  'pureServiceAreaBusiness', 'googleMapsURI', 'utcOffsetMinutes'];
 
 
     place.fetchFields({ fields: FIELDS }).then(function () {
@@ -1654,6 +1681,9 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     if (name.length < 2) { setErr($('usv-f-name'), 'Tell us your restaurant or business name.'); ok = false; }
     else clearErr($('usv-f-name'));
 
+    if (!btypeInput.value) { setErr($('usv-f-btype')); ok = false; }
+    else clearErr($('usv-f-btype'));
+
 
     return ok;
   }
@@ -1847,6 +1877,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   /* The button names its own result, so it overwrites whatever is in the
      field rather than quietly doing nothing when something is typed. */
   on($('usv-newbtn'), 'click', function () { useNotListed(true); });
+  on(btypeInput, 'change', function () { clearErr($('usv-f-btype')); });
 
   /* =========================================================================
      Bot traps
@@ -1936,6 +1967,19 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
 
   /* "Monday: 11:00 AM – 10:00 PM" x7, flattened onto one line so it stays
      readable in a Default field. */
+  /* Google returns a range object, not a number. Flatten to "20-40 USD" so
+     it lands in Default as one readable value. */
+  function priceRange(place) {
+    var r = place && place.priceRange;
+    if (!r) return '';
+    var a = r.startPrice && r.startPrice.units, b = r.endPrice && r.endPrice.units;
+    var cur = (r.startPrice && r.startPrice.currencyCode) ||
+              (r.endPrice && r.endPrice.currencyCode) || '';
+    if (a == null && b == null) return '';
+    if (a != null && b != null) return a + '-' + b + (cur ? ' ' + cur : '');
+    return String(a == null ? b : a) + (cur ? ' ' + cur : '');
+  }
+
   function openingHours(place) {
     var h = place && place.regularOpeningHours;
     var days = h && h.weekdayDescriptions;
@@ -2003,6 +2047,21 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
                                 ? String(place.location.lng()) : '';
     v.place_timezone_offset = place && typeof place.utcOffsetMinutes === 'number'
                                 ? String(place.utcOffsetMinutes) : '';
+
+    /* primaryTypeDisplayName is what a human reads ("Seafood restaurant");
+       primaryType is the stable machine value ("seafood_restaurant"), and
+       types is every category Google files it under. A bar, a cafe and a
+       ghost kitchen all say "restaurant" until you look at these. */
+    v.place_primary_type = place && place.primaryType ? String(place.primaryType) : '';
+    v.place_types        = place && place.types && place.types.length
+                             ? place.types.join(', ') : '';
+    /* No storefront: delivery-only or service-area business. */
+    v.place_service_area_only = place && typeof place.pureServiceAreaBusiness === 'boolean'
+                             ? String(place.pureServiceAreaBusiness) : '';
+    /* E.164, so it lands in the same shape as the lead's own number. */
+    v.place_phone_e164   = place && place.internationalPhoneNumber
+                             ? String(place.internationalPhoneNumber).replace(/[^+0-9]/g, '') : '';
+    v.place_price_range  = priceRange(place);
 
 
     /* All four of these are scoring signals. None of them gate anyone. */

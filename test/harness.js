@@ -39,6 +39,13 @@ const STUB = `<script>
     for (i = 0; i < f.elements.length; i++) {
       el = f.elements[i];
       if (!el.name || el.type === 'password') continue;
+      // Default reads a select's options the same way it reads a radio group
+      if (el.tagName === 'SELECT') {
+        optionsByName[el.name] = [];
+        for (var oi = 0; oi < el.options.length; oi++) {
+          optionsByName[el.name].push(el.options[oi].value);
+        }
+      }
       if (el.type === 'radio') {
         (optionsByName[el.name] = optionsByName[el.name] || []).push(el.value);
         optionLabels[el.value] =
@@ -95,6 +102,12 @@ const STUB = `<script>
             self.businessStatus = rec.status;
             self.googleMapsURI = 'https://maps.google.com/?cid=' + rec.id;
             self.primaryTypeDisplayName = 'Seafood restaurant';
+            self.primaryType = 'seafood_restaurant';
+            self.types = ['seafood_restaurant', 'restaurant', 'food', 'establishment'];
+            self.pureServiceAreaBusiness = false;
+            self.internationalPhoneNumber = '+1 401-849-2900';
+            self.priceRange = { startPrice:{units:20,currencyCode:'USD'},
+                                endPrice:{units:40,currencyCode:'USD'} };
             self.utcOffsetMinutes = -240;
             self.location = { lat: function () { return 41.4901; },
                               lng: function () { return -71.3128; } };

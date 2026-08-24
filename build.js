@@ -578,6 +578,11 @@ function buildPrototypeStub() {
             self.primaryTypeDisplayName = rec.cat || 'Restaurant';
             self.utcOffsetMinutes    = -240;
             self.types               = ['restaurant', 'food', 'point_of_interest'];
+            self.primaryType         = 'restaurant';
+            self.pureServiceAreaBusiness = false;
+            self.internationalPhoneNumber = '+1 ' + String(rec.tel || '').replace(/[^0-9]/g, '');
+            self.priceRange          = { startPrice: { units: 20, currencyCode: 'USD' },
+                                         endPrice:   { units: 40, currencyCode: 'USD' } };
             self.location            = { lat: function () { return rec.lat || 41.4901; },
                                          lng: function () { return rec.lng || -71.3128; } };
             self.regularOpeningHours = {
