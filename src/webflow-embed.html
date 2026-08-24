@@ -488,10 +488,9 @@
         </div>
 
         <!-- ================= STEP 0 — who are we talking to =================
-             Most of the junk on an inbound demo form is not spam, it is people
-             in the wrong place: diners chasing a receipt, and customers who
-             need support. Asking first costs one tap and keeps both out of the
-             sales queue entirely. -->
+             Most of what clogs an inbound demo form is not spam, it is existing
+             customers who need support or their account team. Asking first
+             costs one tap and keeps them out of the new-business queue. -->
         <section class="usv-panel is-on" id="usv-step0" aria-labelledby="usv-h0">
           <p class="usv-eyebrow">Step 1 of 3</p>
           <h2 class="usv-h" id="usv-h0">Who are <em>you</em>?</h2>
@@ -655,7 +654,6 @@
             <label class="usv-label" for="usv-phone">Mobile phone<span class="usv-req">*</span></label>
             <input class="usv-input" id="usv-phone" name="phone" type="tel"
                    autocomplete="tel" inputmode="tel" placeholder="(305) 555-0142">
-            <p class="usv-help">For your confirmation text. No cold calls.</p>
             <p class="usv-err" id="usv-phone-err">Enter a valid mobile number.</p>
           </div>
           </div>
@@ -682,18 +680,6 @@
         <ul class="usv-links" id="usv-cust-links"></ul>
       </section>
 
-      <section class="usv-panel" id="usv-out-diner" aria-live="polite" hidden>
-        <p class="usv-eyebrow">You want the restaurant</p>
-        <h2 class="usv-h">We make the software, not the <em>meal</em>.</h2>
-        <p class="usv-sub">Upserve makes the software a restaurant uses to take payments.
-          We can&rsquo;t see your bill, booking or order. For a receipt, a refund, or
-          anything about your visit, contact the restaurant directly.</p>
-        <div class="usv-actions">
-          <button type="button" class="usv-btn usv-btn-ghost" id="usv-diner-back">
-            &larr; That&rsquo;s not me, go back
-          </button>
-        </div>
-      </section>
 
       <!-- ================= SUCCESS ================= -->
       <section class="usv-panel" id="usv-done" aria-live="polite" hidden>
@@ -840,7 +826,7 @@
 
     ROUTING_HELP : {
       add_location     : 'AM',
-      expand_location  : 'AM',
+      add_products     : 'AM',
       product_help     : 'SUPPORT',
       account_billing  : 'SUPPORT',
       other            : 'SUPPORT'
@@ -908,8 +894,7 @@
   var CARDS = {
     visitor: ['visitor_type',
       'prospect;I\u2019m new to Upserve;Exploring, comparing, or switching',
-      'current_customer;I\u2019m already an Upserve customer;Help, another location, or an upgrade',
-      'diner;I ate at a restaurant;A receipt, a refund, or the restaurant'],
+      'current_customer;I\u2019m already an Upserve customer;Help, another location, or an upgrade'],
 
     status: ['restaurant_status',
       'brand_new_opening;We\u2019re opening a brand-new spot;Not open yet',
@@ -918,7 +903,7 @@
 
     help: ['help_topic',
       'add_location;Add a new location;',
-      'expand_location;Expand an existing location;',
+      'add_products;Add new products;',
       'product_help;Product help;',
       'account_billing;Account or billing;',
       'other;Something else;']
@@ -1749,7 +1734,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
 
   var step0 = $('usv-step0');
   var outCust = $('usv-out-cust');
-  var outDiner = $('usv-out-diner');
 
   /* Support routes are built from CFG.SUPPORT so there is one place to fix
      them, and so a wrong link cannot hide in the markup. */
@@ -1771,7 +1755,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   }());
 
   function showPanel(el) {
-    var panels = [step0, step1, step2, outCust, outDiner, donePanel], i;
+    var panels = [step0, step1, step2, outCust, donePanel], i;
     for (i = 0; i < panels.length; i++) {
       if (!panels[i]) continue;
       panels[i].classList.toggle('is-on', panels[i] === el);
@@ -1783,16 +1767,8 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     } catch (e) { /* no-op */ }
   }
 
-  /* An off-ramp is a dead end on purpose: nothing is submitted, nothing is
-     created, and the visitor gets the answer they actually came for. */
-  /* A diner has nothing to submit and nothing to book. The page answers the
-     question they actually had and stops there. */
-  function showOffRamp(kind) {
-    S.step = 0;
-    track('deflected', { visitor_type: kind });
-    showPanel(outDiner);
-    say('This looks like a question for the restaurant.');
-  }
+  /* The support off-ramp is a dead end on purpose: the visitor gets the
+     answer they actually came for rather than a scheduler. */
 
   function goStep(n) {
     if (n === 2 && !validateStep1()) { focusFirstInvalid(step1); return; }
@@ -1861,12 +1837,9 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     S.visitor = picked.value;
     track('visitor_type', { visitor_type: S.visitor });
 
-    if (S.visitor === 'diner') { showOffRamp('diner'); return; }
     S.step = 1;
     goStep(1);
   });
-
-  on($('usv-diner-back'), 'click', function () { S.step = 0; showPanel(step0); });
 
   on($('usv-next'), 'click', function () { goStep(2); });
   on($('usv-back'), 'click', function () { goStep(1); });
@@ -2189,16 +2162,24 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   /* Three of the five customer topics route to SUPPORT, which books nothing.
      The button and the fine print under it are the two promises made right
      before someone commits, so both have to match where they actually land. */
-  function routesToSupport() {
-    if (!isCustomer()) return false;
+  function helpRoute() {
+    if (!isCustomer()) return '';
     var picked = root.querySelector('input[name="help_topic"]:checked');
-    return !!picked && CFG.ROUTING_HELP[picked.value] === 'SUPPORT';
+    return picked ? (CFG.ROUTING_HELP[picked.value] || '') : '';
   }
+  function routesToSupport() { return helpRoute() === 'SUPPORT'; }
+
+  /* Three destinations, three promises. An existing customer adding a
+     terminal is not being sold a demo, and saying so is the fastest way to
+     get the call declined. */
   function paintSubmit() {
-    var sup = routesToSupport();
-    txt(submitTxt, sup ? 'Send to support' : 'Book my demo');
-    txt($('usv-fine'), sup ? 'Only used to answer your question.'
-                           : 'Only used to set up your demo.');
+    var r = helpRoute();
+    txt(submitTxt, r === 'SUPPORT' ? 'Send to support'
+                 : r === 'AM'      ? 'Connect with the account team'
+                                   : 'Book my demo');
+    txt($('usv-fine'), r === 'SUPPORT' ? 'Only used to answer your question.'
+                     : r === 'AM'      ? 'Only used to put you with the right person.'
+                                       : 'Only used to set up your demo.');
   }
 
   function setBusy(b) {

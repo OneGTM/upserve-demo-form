@@ -49,8 +49,9 @@ const FLOOR_MS = 3000;
 async function submit(page) {
   const elapsed = Date.now() - (openedAt.get(page) || 0);
   if (elapsed < FLOOR_MS + 200) await page.waitForTimeout(FLOOR_MS + 200 - elapsed);
-  // the label names the destination, so it differs on the support topics
-  await page.getByRole('button', { name: /book my demo|send to support/i }).click();
+  // the label names the destination: demo, account team, or support
+  await page.getByRole('button',
+    { name: /book my demo|connect with the account team|send to support/i }).click();
 }
 
 /** Type into the finder and pick the first real result. */
@@ -76,6 +77,10 @@ async function continueToStep2(page) {
   await chooseBusinessType(page);
   await clickContinue(page);
   await expect(page.locator('input[name="first_name"]')).toBeVisible();
+  // The step focuses its first empty field ~40ms after arriving. Left to race,
+  // that steals focus midway through a test's own fill/blur and the blur
+  // handler never runs - the source of every intermittent failure so far.
+  await page.waitForTimeout(120);
 }
 
 async function fillContact(page, { first = 'Jamie', last = 'Okafor',
@@ -476,23 +481,14 @@ test('clicking the description still selects the card', async ({ page }) => {
 
 /* ── triage: the people who should never reach the sales queue ───────────── */
 
-test('a diner is answered and nothing is created', async ({ page }) => {
-  await open(page, null);                       // stop before the triage choice
-  await page.locator('input[value="diner"]').check({ force: true });
-  await clickContinue(page);
-
-  await expect(page.getByText(/we make the software/i)).toBeVisible();
-  await expect(page.locator('[role="combobox"]')).not.toBeVisible();
-  expect(await submissions(page)).toHaveLength(0);
-  expect(await events(page)).toContain('usv_form_deflected');
-});
-
-test('a diner can back out if they picked wrong', async ({ page }) => {
+// Dropped on the New Lead Form call: diners are not the audience, and the
+// option only existed because of a marketing constraint that has passed.
+test('there is no diner option, and no off-ramp left behind', async ({ page }) => {
   await open(page, null);
-  await page.locator('input[value="diner"]').check({ force: true });
-  await clickContinue(page);
-  await page.getByRole('button', { name: /that.s not me/i }).click();
-  await expect(page.getByText(/who are you|who are/i).first()).toBeVisible();
+  await expect(page.locator('input[value="diner"]')).toHaveCount(0);
+  await expect(page.getByText(/i ate at a restaurant/i)).toHaveCount(0);
+  await expect(page.getByText(/we make the software/i)).toHaveCount(0);
+  await expect(page.locator('input[name="visitor_type"]')).toHaveCount(2);
 });
 
 test('triage will not advance without a choice', async ({ page }) => {
@@ -546,7 +542,7 @@ test('a prospect is asked where they are, not what they need', async ({ page }) 
   await expect(page.locator('[data-help="add_location"]')).not.toBeVisible();
 });
 
-for (const [choice, owner] of [['add_location', 'AM'], ['expand_location', 'AM']]) {
+for (const [choice, owner] of [['add_location', 'AM'], ['add_products', 'AM']]) {
   test('a customer choosing ' + choice + ' routes to ' + owner, async ({ page }) => {
     await walkTo(page, 'current_customer', choice);
     await submit(page);
@@ -689,8 +685,7 @@ test('all three questions arrive as option groups Default can branch on',
 
     // a hidden input carries a value but no options, so Default has nothing to
     // pick from when building a condition — every question must be a real group
-    expect(optionsByName.visitor_type).toEqual(
-      ['prospect', 'current_customer', 'diner']);
+    expect(optionsByName.visitor_type).toEqual(['prospect', 'current_customer']);
     expect(optionsByName.restaurant_status).toEqual(
       ['brand_new_opening', 'replacing_pos', 'exploring']);
 
@@ -789,7 +784,7 @@ test('the shipped embed contains no em or en dash', () => {
 /* ── the button has to name where it actually goes ───────────────────────── */
 
 const SUPPORT_TOPICS = ['product_help', 'account_billing', 'other'];
-const BOOKING_TOPICS = ['add_location', 'expand_location'];
+const AM_TOPICS = ['add_location', 'add_products'];
 
 for (const topic of SUPPORT_TOPICS) {
   test(`${topic} offers to send to support, not to book a demo`, async ({ page }) => {
@@ -804,14 +799,18 @@ for (const topic of SUPPORT_TOPICS) {
   });
 }
 
-for (const topic of BOOKING_TOPICS) {
-  test(`${topic} still offers to book a demo`, async ({ page }) => {
+// An existing customer adding a terminal is not being sold a demo. Calling it
+// one is the fastest way to get the call declined.
+for (const topic of AM_TOPICS) {
+  test(`${topic} offers the account team, never a demo`, async ({ page }) => {
     await open(page, 'current_customer');
     await pickRestaurant(page, 'Tautog');
     await continueToStep2(page);
     await page.locator(`input[value="${topic}"]`).check({ force: true });
 
-    await expect(page.getByRole('button', { name: /book my demo/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /connect with the account team/i }))
+      .toBeVisible();
+    await expect(page.getByRole('button', { name: /book my demo/i })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /send to support/i })).toHaveCount(0);
   });
 }
@@ -824,8 +823,9 @@ test('switching from a support topic back to a booking one restores the label',
     await page.locator('input[value="account_billing"]').check({ force: true });
     await expect(page.getByRole('button', { name: /send to support/i })).toBeVisible();
     await page.locator('input[value="add_location"]').check({ force: true });
-    await expect(page.getByRole('button', { name: /book my demo/i })).toBeVisible();
-    await expect(page.getByText(/only used to set up your demo/i)).toBeVisible();
+    await expect(page.getByRole('button', { name: /connect with the account team/i }))
+      .toBeVisible();
+    await expect(page.getByText(/right person/i)).toBeVisible();
   });
 
 test('a prospect never sees the support label, whatever they pick', async ({ page }) => {
@@ -855,6 +855,13 @@ test('no step between triage and submit is a dead end', async ({ page }) => {
 });
 
 /* ── what we take from Places ────────────────────────────────────────────── */
+
+test('the form makes no promise about not calling', async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await expect(page.getByText(/no cold calls/i)).toHaveCount(0);
+});
 
 test('every Places field we pay for reaches Default', async ({ page }) => {
   await open(page);
