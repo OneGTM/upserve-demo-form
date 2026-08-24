@@ -49,7 +49,8 @@ const FLOOR_MS = 3000;
 async function submit(page) {
   const elapsed = Date.now() - (openedAt.get(page) || 0);
   if (elapsed < FLOOR_MS + 200) await page.waitForTimeout(FLOOR_MS + 200 - elapsed);
-  await page.getByRole('button', { name: /book my demo/i }).click();
+  // the label names the destination, so it differs on the support topics
+  await page.getByRole('button', { name: /book my demo|send to support/i }).click();
 }
 
 /** Type into the finder and pick the first real result. */
@@ -748,18 +749,99 @@ test('Back on the details step returns to the finder with the place intact', asy
   expect((await submissions(page))[0].fields.place_source).toBe('google');
 });
 
-test('no user-facing copy uses an em dash', async ({ page }) => {
-  await open(page, null);
-  const dashes = await page.evaluate(() => {
-    const root = document.body;
-    const found = [];
-    // every text node the form can ever show, panels included
-    root.querySelectorAll('*').forEach((el) => {
-      el.childNodes.forEach((n) => {
-        if (n.nodeType === 3 && /[–—]/.test(n.nodeValue)) found.push(n.nodeValue.trim());
-      });
-    });
-    return found;
+/**
+ * No em dash anywhere in what ships.
+ *
+ * The earlier version of this swept live text nodes, which missed two: copy
+ * injected by JS into a panel the sweep never reached, and a dash written as
+ * a — escape rather than a literal. Scanning the built artifact catches
+ * both, plus any panel no test happens to visit.
+ */
+test('the shipped embed contains no em or en dash', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const dir = path.join(__dirname, '..', 'webflow');
+  const files = ['embed.html', 'embed-part1.html', 'embed-part2.html']
+    .map((f) => path.join(dir, f))
+    .filter((f) => fs.existsSync(f));
+
+  expect(files.length).toBeGreaterThan(0);
+
+  const offenders = [];
+  for (const f of files) {
+    const text = fs.readFileSync(f, 'utf8');
+    // literal dashes, HTML entities, and JS unicode escapes alike
+    const re = /.{0,40}(—|–|&mdash;|&ndash;|\\u201[34]).{0,40}/g;
+    let m;
+    while ((m = re.exec(text))) offenders.push(path.basename(f) + ': ' + m[0].trim());
+  }
+  expect(offenders).toEqual([]);
+});
+
+/* ── the button has to name where it actually goes ───────────────────────── */
+
+const SUPPORT_TOPICS = ['product_help', 'account_billing', 'other'];
+const BOOKING_TOPICS = ['add_location', 'expand_location'];
+
+for (const topic of SUPPORT_TOPICS) {
+  test(`${topic} offers to send to support, not to book a demo`, async ({ page }) => {
+    await open(page, 'current_customer');
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await page.locator(`input[value="${topic}"]`).check({ force: true });
+
+    await expect(page.getByRole('button', { name: /send to support/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /book my demo/i })).toHaveCount(0);
+    await expect(page.getByText(/only used to answer your question/i)).toBeVisible();
   });
-  expect(dashes).toEqual([]);
+}
+
+for (const topic of BOOKING_TOPICS) {
+  test(`${topic} still offers to book a demo`, async ({ page }) => {
+    await open(page, 'current_customer');
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await page.locator(`input[value="${topic}"]`).check({ force: true });
+
+    await expect(page.getByRole('button', { name: /book my demo/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /send to support/i })).toHaveCount(0);
+  });
+}
+
+test('switching from a support topic back to a booking one restores the label',
+  async ({ page }) => {
+    await open(page, 'current_customer');
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await page.locator('input[value="account_billing"]').check({ force: true });
+    await expect(page.getByRole('button', { name: /send to support/i })).toBeVisible();
+    await page.locator('input[value="add_location"]').check({ force: true });
+    await expect(page.getByRole('button', { name: /book my demo/i })).toBeVisible();
+    await expect(page.getByText(/only used to set up your demo/i)).toBeVisible();
+  });
+
+test('a prospect never sees the support label, whatever they pick', async ({ page }) => {
+  await open(page);                                   // prospect
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  for (const v of ['brand_new_opening', 'replacing_pos', 'exploring']) {
+    await page.locator(`input[value="${v}"]`).check({ force: true });
+    await expect(page.getByRole('button', { name: /book my demo/i })).toBeVisible();
+  }
+});
+
+/* ── every step you can reach, you can leave ─────────────────────────────── */
+
+test('no step between triage and submit is a dead end', async ({ page }) => {
+  await open(page, null);
+  const backish = /back|that.s not me/i;
+
+  await page.locator('input[value="prospect"]').check({ force: true });
+  await clickContinue(page);
+  await expect(page.locator('[role="combobox"]')).toBeVisible();
+  await expect(page.getByRole('button', { name: backish })).toHaveCount(1);   // finder
+
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await expect(page.getByRole('button', { name: backish })).toHaveCount(1);   // details
 });

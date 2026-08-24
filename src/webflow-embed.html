@@ -645,9 +645,7 @@
               <span class="usv-btn-spin" aria-hidden="true"></span>
               <span id="usv-submit-txt">Book my demo</span>
             </button>
-            <p class="usv-fine">
-              Only used to set up your demo.
-            </p>
+            <p class="usv-fine" id="usv-fine">Only used to set up your demo.</p>
           </div>
         </section>
       </form>
@@ -880,7 +878,7 @@
      ========================================================================= */
   var CARDS = {
     visitor: ['visitor_type',
-      'prospect;I\u2019m new to Upserve, or coming back;Exploring, comparing, or switching',
+      'prospect;I\u2019m new to Upserve;Exploring, comparing, or switching',
       'current_customer;I\u2019m already an Upserve customer;Help, another location, or an upgrade',
       'diner;I ate at a restaurant;A receipt, a refund, or the restaurant'],
 
@@ -1797,6 +1795,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   for (var hi = 0; hi < helpInputs.length; hi++) {
     on(helpInputs[hi], 'change', function () {
       paintStatus();
+      paintSubmit();
       clearErr($('usv-f-help'));
     });
   }
@@ -1811,6 +1810,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     $('usv-f-status').hidden = c;
     $('usv-f-help').hidden = !c;
     txt($('usv-h2'), c ? 'What do you need help with?' : 'Where are you today?');
+    paintSubmit();
   }
 
   var visitorInputs = root.querySelectorAll('input[name="visitor_type"]');
@@ -2101,7 +2101,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     form.hidden = true;
     form.style.display = 'none';
     txt($('usv-cust-eyebrow'), 'Sent to support');
-    $('usv-cust-h').innerHTML = 'We&rsquo;ve got it \u2014 support will <em>follow up</em>.';
+    $('usv-cust-h').innerHTML = 'Got it. Support will <em>follow up</em>.';
     txt($('usv-cust-sub'), 'If it is urgent, these reach someone right now.');
     showPanel(outCust);
     say('Sent to support.');
@@ -2123,11 +2123,26 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     } catch (e) { /* no-op */ }
   }
 
+  /* Three of the five customer topics route to SUPPORT, which books nothing.
+     The button and the fine print under it are the two promises made right
+     before someone commits, so both have to match where they actually land. */
+  function routesToSupport() {
+    if (!isCustomer()) return false;
+    var picked = root.querySelector('input[name="help_topic"]:checked');
+    return !!picked && CFG.ROUTING_HELP[picked.value] === 'SUPPORT';
+  }
+  function paintSubmit() {
+    var sup = routesToSupport();
+    txt(submitTxt, sup ? 'Send to support' : 'Book my demo');
+    txt($('usv-fine'), sup ? 'Only used to answer your question.'
+                           : 'Only used to set up your demo.');
+  }
+
   function setBusy(b) {
     S.submitting = b;
     submitBtn.disabled = b;
     submitBtn.classList.toggle('is-busy', b);
-    txt(submitTxt, b ? 'Sending…' : 'Book my demo');
+    if (b) txt(submitTxt, 'Sending…'); else paintSubmit();
   }
 
   /* Default's callbacks only exist once its script has run. Register once,
@@ -2325,7 +2340,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
 
     if (window.console && (!CFG.GOOGLE_MAPS_API_KEY ||
         CFG.GOOGLE_MAPS_API_KEY.indexOf('REPLACE_') === 0)) {
-      console.warn('[Upserve form] No Google Maps API key set — restaurant ' +
+      console.warn('[Upserve form] No Google Maps API key set. Restaurant ' +
         'autocomplete is OFF and the name field is a plain text input. ' +
         'Set CFG.GOOGLE_MAPS_API_KEY at the top of the embed to turn it on.');
     }
