@@ -67,14 +67,7 @@ async function pickRestaurant(page, query) {
   return label;
 }
 
-/** Business type is required on the finder step, so answer it on the way past. */
-async function chooseBusinessType(page, value = "full_service") {
-  const sel = page.locator('select[name="business_type"]');
-  if (await sel.isVisible()) await sel.selectOption(value);
-}
-
 async function continueToStep2(page) {
-  await chooseBusinessType(page);
   await clickContinue(page);
   await expect(page.locator('input[name="first_name"]')).toBeVisible();
   // The step focuses its first empty field ~40ms after arriving. Left to race,
@@ -219,7 +212,6 @@ test('submitting under the speed floor blocks, and Default is never called',
     await page.locator('[role="option"]').first().click();
     await page.clock.runFor(200);                 // place details
 
-    await chooseBusinessType(page);
     await clickContinue(page);
     await fillContact(page);
     await page.clock.runFor(400);
@@ -906,32 +898,97 @@ test('a place missing the optional Places data still submits a full shape',
     }
   });
 
-/* ── business type ───────────────────────────────────────────────────────── */
+/* ── responsive + weight ─────────────────────────────────────────────────
+ * These run in both projects, so every assertion below is checked at desktop
+ * width and at Pixel 5 width. The harness sets the same viewport meta the
+ * host page does; without it a mobile run silently measures the desktop
+ * layout at 980px.
+ */
 
-test('business type is required before the details step', async ({ page }) => {
-  await open(page);
+test('no step ever scrolls the page sideways', async ({ page }) => {
+  const noOverflow = async (where) => {
+    const over = await page.evaluate(() =>
+      document.documentElement.scrollWidth - window.innerWidth);
+    expect(over, where + ' overflows by ' + over + 'px').toBeLessThanOrEqual(0);
+  };
+  await open(page, null);
+  await noOverflow('triage');
+  await page.locator('input[value="prospect"]').check({ force: true });
+  await clickContinue(page);
+  await noOverflow('finder');
   await pickRestaurant(page, 'Tautog');
-  await clickContinue(page);                       // without answering it
-  await expect(page.locator('input[name="first_name"]')).not.toBeVisible();
-  await expect(page.getByText(/choose the closest match/i)).toBeVisible();
+  await continueToStep2(page);
+  await noOverflow('details');
+  await page.fill('input[name="email"]', 'jamie@gmial.com');   // widest state
+  await page.locator('input[name="email"]').blur();
+  await page.waitForTimeout(150);
+  await noOverflow('details with the typo hint open');
 });
 
-test('business type reaches Default as an option group including Non-restaurant',
+test('no visible field is small enough to make iOS zoom on focus', async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  const tooSmall = await page.evaluate(() =>
+    [...document.querySelectorAll('input, select, textarea')]
+      .filter((e) => {
+        const b = e.getBoundingClientRect();
+        // on-screen and actually visible: the honeypot sits at left:-9999px
+        return e.offsetParent && getComputedStyle(e).opacity !== '0' &&
+               b.height > 4 && b.right > 0 && b.left < window.innerWidth;
+      })
+      .map((e) => ({ name: e.name, size: parseFloat(getComputedStyle(e).fontSize) }))
+      .filter((x) => x.size < 16));
+  expect(tooSmall).toEqual([]);
+});
+
+test('the text-sized controls have a hit area far bigger than their text',
   async ({ page }) => {
     await open(page);
     await pickRestaurant(page, 'Tautog');
-    await chooseBusinessType(page, 'non_restaurant');
-    await clickContinue(page);
-    await fillContact(page);
-    await submit(page);
+    await continueToStep2(page);
+    await page.fill('input[name="email"]', 'jamie@gmial.com');
+    await page.locator('input[name="email"]').blur();
+    await page.waitForTimeout(150);
 
-    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
-    const { fields, labels, optionsByName } = (await submissions(page))[0];
-    expect(fields.business_type).toBe('non_restaurant');
-    // the asterisk is part of the label Default already has on file, so this
-    // re-attaches to the existing field instead of creating a second one
-    expect(labels.business_type).toBe('What kind of business is it?*');
-    expect(optionsByName.business_type).toEqual([
-      '', 'full_service', 'quick_service', 'fine_dining', 'enterprise', 'non_restaurant'
-    ]);
+    const targets = await page.evaluate(() => {
+      const want = ['Back', 'Change', 'New Restaurant', "No, it", 'Use it'];
+      return [...document.querySelectorAll('button')].filter((e) => e.offsetParent)
+        .filter((e) => want.some((w) => e.textContent.includes(w)))
+        .map((e) => {
+          const b = e.getBoundingClientRect();
+          const a = getComputedStyle(e, '::after');
+          const g = (v) => Math.abs(parseFloat(v) || 0);
+          const grown = a.content !== 'none';
+          return { t: e.textContent.replace(/\s+/g, ' ').trim().slice(0, 20),
+                   h: Math.round(b.height + (grown ? g(a.top) + g(a.bottom) : 0)) };
+        });
+    });
+    expect(targets.length).toBeGreaterThanOrEqual(4);
+    // WCAG 2.5.8 asks for 24; these clear it comfortably
+    for (const t of targets) {
+      expect(t.h, `"${t.t}" hit area is only ${t.h}px tall`).toBeGreaterThanOrEqual(32);
+    }
+  });
+
+test('the Maps SDK is not requested until the visitor heads for the finder',
+  async ({ page }) => {
+    await open(page, null);                       // sitting on triage
+    expect(await page.evaluate(() => window.__placesLoads),
+      'Maps must not load before the visitor shows any intent').toBe(0);
+
+    await page.locator('input[value="prospect"]').check({ force: true });
+    await page.waitForTimeout(150);
+    // warmed a whole step early, so it is ready by the time they type
+    expect(await page.evaluate(() => window.__placesLoads)).toBeGreaterThan(0);
+  });
+
+test('a support-bound customer never causes the Maps SDK to load twice',
+  async ({ page }) => {
+    await open(page, 'current_customer');
+    await page.waitForTimeout(150);
+    const after = await page.evaluate(() => window.__placesLoads);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    expect(await page.evaluate(() => window.__placesLoads)).toBe(after);
   });
