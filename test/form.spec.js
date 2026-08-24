@@ -687,3 +687,79 @@ test('all three questions arrive as option groups Default can branch on',
 
     expect(labels.visitor_type).toBe('Who they are');
   });
+
+/* ── the always-visible way out ──────────────────────────────────────────── */
+
+test('the New Restaurant button fills the field without typing anything first', async ({ page }) => {
+  await open(page);
+  await page.getByRole('button', { name: /new restaurant/i }).click();
+  await expect(page.locator('[role="combobox"]')).toHaveValue('New Restaurant');
+
+  await continueToStep2(page);
+  await fillContact(page);
+  await submit(page);
+
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  const { fields } = (await submissions(page))[0];
+  expect(fields.restaurant_name).toBe('New Restaurant');
+  expect(fields.place_source).toBe('not_listed');
+  expect(fields.place_verified).toBe('false');
+  // not listed almost always means brand new, which is an AE
+  expect(fields.restaurant_status).toBe('brand_new_opening');
+  expect(fields.routing_owner).toBe('AE');
+});
+
+test('the button overwrites a half-typed name, since that is what it says it does',
+  async ({ page }) => {
+    await open(page);
+    const input = page.locator('[role="combobox"]');
+    await input.click();
+    await input.fill('Taut');
+    await page.getByRole('button', { name: /new restaurant/i }).click();
+    await expect(input).toHaveValue('New Restaurant');
+    // and the list it was covering is closed
+    await expect(page.locator('[role="option"]')).toHaveCount(0);
+  });
+
+/* ── going backwards ─────────────────────────────────────────────────────── */
+
+test('Back on the finder returns to triage without losing the answer', async ({ page }) => {
+  await open(page);                                  // prospect, now on the finder
+  await page.getByRole('button', { name: /^.?\s*back$/i }).click();
+  await expect(page.locator('input[value="prospect"]')).toBeChecked();
+  await expect(page.locator('[role="combobox"]')).not.toBeVisible();
+});
+
+test('Back on the details step returns to the finder with the place intact', async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await page.getByRole('button', { name: /^.?\s*back$/i }).click();
+
+  const input = page.locator('[role="combobox"]');
+  await expect(input).toBeVisible();
+  await expect(input).toHaveValue('Tautog Tavern');
+
+  await continueToStep2(page);
+  await fillContact(page);
+  await submit(page);
+
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  expect((await submissions(page))[0].fields.place_source).toBe('google');
+});
+
+test('no user-facing copy uses an em dash', async ({ page }) => {
+  await open(page, null);
+  const dashes = await page.evaluate(() => {
+    const root = document.body;
+    const found = [];
+    // every text node the form can ever show, panels included
+    root.querySelectorAll('*').forEach((el) => {
+      el.childNodes.forEach((n) => {
+        if (n.nodeType === 3 && /[–—]/.test(n.nodeValue)) found.push(n.nodeValue.trim());
+      });
+    });
+    return found;
+  });
+  expect(dashes).toEqual([]);
+});

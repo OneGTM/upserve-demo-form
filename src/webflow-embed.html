@@ -81,15 +81,15 @@
   width:100%;
   display:flex;
   justify-content:center;
-  padding:clamp(20px,5vw,64px) clamp(14px,4vw,32px);
+  padding:clamp(6px,1.4vw,18px) clamp(12px,3vw,20px) clamp(16px,3vw,28px);
 }
 #usv-demo .usv-card{
   width:100%;
-  max-width:560px;
+  max-width:720px;
   background:var(--usv-paper);
   border-radius:var(--usv-r);
   box-shadow:var(--usv-shadow);
-  padding:clamp(26px,5vw,44px);
+  padding:clamp(24px,3.4vw,32px) clamp(22px,3.4vw,36px) clamp(24px,3.4vw,34px);
   position:relative;
   overflow:hidden;
 }
@@ -102,7 +102,7 @@
 /* --- stepper -------------------------------------------------------------- */
 #usv-demo .usv-steps{
   display:flex;align-items:center;gap:8px;
-  margin:0 0 20px;
+  margin:0 0 13px;
 }
 #usv-demo .usv-step-dot{
   height:3px;flex:1 1 0;border-radius:2px;
@@ -110,11 +110,24 @@
   transition:background .35s ease;
 }
 #usv-demo .usv-step-dot.is-on{background:var(--usv-yellow);}
+#usv-demo .usv-nav{
+  display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+  margin:0 0 9px;
+}
+#usv-demo .usv-nav .usv-eyebrow{margin:0;}
+#usv-demo .usv-back-top{
+  flex:0 0 auto;order:2;
+  font-family:var(--usv-sans);font-size:12px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;
+  color:var(--usv-ink-3);background:none;border:0;padding:0;cursor:pointer;
+  text-decoration:underline;text-underline-offset:3px;
+}
+#usv-demo .usv-back-top:hover{color:var(--usv-ink);}
 #usv-demo .usv-eyebrow{
   font-family:var(--usv-sans);
   font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
   color:var(--usv-ink-3);
-  margin:0 0 10px;
+  margin:0 0 9px;
 }
 
 /* --- type ----------------------------------------------------------------- */
@@ -124,23 +137,28 @@
 #usv-demo h2.usv-h{
   font-family:var(--usv-serif);
   font-weight:400;
-  font-size:clamp(25px,4.4vw,32px);
-  line-height:1.16;
+  font-size:clamp(24px,3.1vw,30px);
+  line-height:1.14;
   letter-spacing:-.012em;
   color:var(--usv-ink);
-  margin:0 0 8px;
+  margin:0 0 14px;
 }
 #usv-demo h2.usv-h em{font-style:italic;font-weight:400;}
 #usv-demo .usv-sub{
   font-size:15px;line-height:1.55;color:var(--usv-ink-2);
-  margin:0 0 26px;
+  margin:-6px 0 22px;
 }
 
 /* --- fields --------------------------------------------------------------- */
-#usv-demo .usv-field{margin:0 0 20px;position:relative;}
-#usv-demo .usv-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-@media (max-width:479px){#usv-demo .usv-row{grid-template-columns:1fr;gap:0;}}
+#usv-demo .usv-field{margin:0 0 16px;position:relative;}
+#usv-demo .usv-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
+@media (max-width:439px){#usv-demo .usv-row{grid-template-columns:1fr;gap:0;}}
+@media (max-width:559px){#usv-demo .usv-row2{grid-template-columns:1fr;gap:0;}}
 
+#usv-demo .usv-labelrow{
+  display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+}
+#usv-demo .usv-labelrow .usv-label{margin-bottom:7px;}
 #usv-demo label.usv-label{
   display:block;
   font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
@@ -171,6 +189,16 @@
   box-shadow:0 0 0 3px rgba(255,205,4,.42);
 }
 
+#usv-demo .usv-newbtn{
+  flex:0 0 auto;
+  font-family:var(--usv-sans);font-size:13px;font-weight:700;
+  color:var(--usv-ink);background:none;border:0;padding:0;cursor:pointer;
+  text-decoration:underline;text-decoration-color:var(--usv-yellow);
+  text-decoration-thickness:2px;text-underline-offset:3px;
+  transition:background-color .15s ease;
+}
+#usv-demo .usv-newbtn:hover{background:var(--usv-yellow);}
+#usv-demo .usv-newbtn:focus-visible{outline:2px solid var(--usv-ink);outline-offset:2px;}
 #usv-demo .usv-help{
   font-size:13px;line-height:1.45;color:var(--usv-ink-3);
   margin:7px 0 0;
@@ -257,8 +285,8 @@
   border:1px solid var(--usv-line-2);
   border-left:3px solid var(--usv-yellow);
   border-radius:8px;
-  padding:13px 14px;
-  margin:0 0 24px;
+  padding:12px 14px;
+  margin:0 0 18px;
 }
 #usv-demo .usv-place-body{flex:1 1 auto;min-width:0;}
 #usv-demo .usv-place-name{font-weight:700;font-size:15px;line-height:1.3;color:var(--usv-ink);}
@@ -273,11 +301,11 @@
 #usv-demo .usv-place-edit:hover{color:var(--usv-ink);}
 
 /* --- radio cards ---------------------------------------------------------- */
-#usv-demo .usv-cards{display:grid;gap:10px;margin:0;padding:0;border:0;}
+#usv-demo .usv-cards{display:grid;gap:8px;margin:0;padding:0;border:0;}
 #usv-demo .usv-card-opt{
   position:relative;
   border:1.5px solid var(--usv-line);border-radius:8px;
-  padding:14px 15px;cursor:pointer;
+  padding:13px 15px;cursor:pointer;
   background:var(--usv-paper);
   transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease;
 }
@@ -312,7 +340,7 @@
 
 /* --- typo rescue ---------------------------------------------------------- */
 #usv-demo .usv-typo{
-  display:none;align-items:center;gap:7px;flex-wrap:wrap;
+  display:none;align-items:center;gap:6px 7px;flex-wrap:wrap;
   margin:9px 0 0;font-size:13.5px;color:var(--usv-ink-2);
 }
 #usv-demo .usv-typo.is-on{display:flex;}
@@ -330,7 +358,7 @@
 }
 
 /* --- buttons -------------------------------------------------------------- */
-#usv-demo .usv-actions{margin-top:28px;}
+#usv-demo .usv-actions{margin-top:20px;}
 #usv-demo .usv-btn{
   display:inline-flex;align-items:center;justify-content:center;gap:9px;
   width:100%;
@@ -362,7 +390,7 @@
 
 #usv-demo .usv-fine{
   font-size:12.5px;line-height:1.5;color:var(--usv-ink-3);
-  margin:16px 0 0;
+  margin:12px 0 0;
 }
 #usv-demo .usv-fine a{color:var(--usv-ink-2);text-underline-offset:2px;}
 
@@ -462,7 +490,7 @@
              sales queue entirely. -->
         <section class="usv-panel is-on" id="usv-step0" aria-labelledby="usv-h0">
           <p class="usv-eyebrow">Step 1 of 3</p>
-          <h2 class="usv-h" id="usv-h0">First &mdash; who are <em>you</em>?</h2>
+          <h2 class="usv-h" id="usv-h0">Who are <em>you</em>?</h2>
 
           <div class="usv-field" id="usv-f-visitor">
             <fieldset class="usv-cards" data-cards="visitor">
@@ -484,18 +512,27 @@
 
         <!-- ================= STEP 1 ================= -->
         <section class="usv-panel" id="usv-step1" aria-labelledby="usv-h1" hidden>
-          <p class="usv-eyebrow">Step 2 of 3</p>
+          <div class="usv-nav">
+            <p class="usv-eyebrow">Step 2 of 3</p>
+            <button type="button" class="usv-back-top" id="usv-back1">&larr; Back</button>
+          </div>
           <h2 class="usv-h" id="usv-h1">Let&rsquo;s find <em>your</em> restaurant.</h2>
 
           <div class="usv-field" id="usv-f-name">
-            <label class="usv-label" for="usv-name">Restaurant or business name<span class="usv-req">*</span></label>
+            <!-- The way out sits ABOVE the field: the suggestion list drops
+                 below it and would cover anything placed underneath. -->
+            <div class="usv-labelrow">
+              <label class="usv-label" for="usv-name">Restaurant or business name<span class="usv-req">*</span></label>
+              <button type="button" class="usv-newbtn" id="usv-newbtn"
+                      aria-label="Use New Restaurant as the name">Use &ldquo;New Restaurant&rdquo;</button>
+            </div>
 
             <div class="usv-combo">
               <input class="usv-combo-input" id="usv-name" name="restaurant_name" type="text"
                      placeholder="e.g. Shorty&rsquo;s BBQ"
                      autocomplete="organization" autocapitalize="words" spellcheck="false"
                      role="combobox" aria-expanded="false" aria-autocomplete="list"
-                     aria-controls="usv-listbox" aria-describedby="usv-name-help">
+                     aria-controls="usv-listbox">
               <span class="usv-combo-icon" id="usv-name-icon" aria-hidden="true">
                 <svg width="17" height="17" viewBox="0 0 18 18" fill="none">
                   <circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.7"/>
@@ -505,7 +542,6 @@
               <ul class="usv-listbox" id="usv-listbox" role="listbox" aria-label="Matching restaurants"></ul>
             </div>
 
-            <p class="usv-help" id="usv-name-help">Haven&rsquo;t named it yet? Enter &ldquo;New Restaurant.&rdquo;</p>
             <p class="usv-err" id="usv-name-err">Tell us your restaurant or business name.</p>
           </div>
 
@@ -523,7 +559,10 @@
 
         <!-- ================= STEP 2 ================= -->
         <section class="usv-panel" id="usv-step2" aria-labelledby="usv-h2" hidden>
-          <p class="usv-eyebrow">Step 3 of 3</p>
+          <div class="usv-nav">
+            <p class="usv-eyebrow">Step 3 of 3</p>
+            <button type="button" class="usv-back-top" id="usv-back">&larr; Back</button>
+          </div>
 
           <div class="usv-place" id="usv-place">
             <span class="usv-place-check" id="usv-place-check" aria-hidden="true">
@@ -578,6 +617,7 @@
             Free inboxes are welcome. gmail/yahoo operators are real buyers.
             The domain feeds scoring downstream; it never blocks a submit.
           -->
+          <div class="usv-row usv-row2">
           <div class="usv-field" id="usv-f-email">
             <label class="usv-label" for="usv-email">Email<span class="usv-req">*</span></label>
             <input class="usv-input" id="usv-email" name="email" type="email"
@@ -598,13 +638,13 @@
             <p class="usv-help">For your confirmation text. No cold calls.</p>
             <p class="usv-err" id="usv-phone-err">Enter a valid mobile number.</p>
           </div>
+          </div>
 
           <div class="usv-actions">
             <button type="submit" class="usv-btn" id="usv-submit">
               <span class="usv-btn-spin" aria-hidden="true"></span>
               <span id="usv-submit-txt">Book my demo</span>
             </button>
-            <button type="button" class="usv-btn usv-btn-ghost" id="usv-back">&larr; Back</button>
             <p class="usv-fine">
               Only used to set up your demo.
             </p>
@@ -627,9 +667,9 @@
       <section class="usv-panel" id="usv-out-diner" aria-live="polite" hidden>
         <p class="usv-eyebrow">You want the restaurant</p>
         <h2 class="usv-h">We make the software, not the <em>meal</em>.</h2>
-        <p class="usv-sub">Upserve makes the software a restaurant uses to take payments
-          &mdash; we can&rsquo;t see your bill, booking or order. For a receipt, a refund,
-          or anything about your visit, contact the restaurant directly.</p>
+        <p class="usv-sub">Upserve makes the software a restaurant uses to take payments.
+          We can&rsquo;t see your bill, booking or order. For a receipt, a refund, or
+          anything about your visit, contact the restaurant directly.</p>
         <div class="usv-actions">
           <button type="button" class="usv-btn usv-btn-ghost" id="usv-diner-back">
             &larr; That&rsquo;s not me, go back
@@ -647,8 +687,8 @@
             </svg>
           </div>
           <h2>You&rsquo;re <em>in</em>.</h2>
-          <p id="usv-done-copy">Thanks &mdash; we&rsquo;ve got everything we need. Grab a time that works and we&rsquo;ll take it from there.</p>
-          <p class="usv-fine">If the scheduler doesn&rsquo;t open, check your email &mdash; your link is on the way.</p>
+          <p id="usv-done-copy">We&rsquo;ve got everything we need. Grab a time that works and we&rsquo;ll take it from there.</p>
+          <p class="usv-fine">If the scheduler doesn&rsquo;t open, check your email. Your link is on the way.</p>
         </div>
       </section>
 
@@ -1087,7 +1127,6 @@
   var nameInput = $('usv-name');
   var listbox   = $('usv-listbox');
   var nameIcon  = $('usv-name-icon');
-  var nameHelp  = $('usv-name-help');
 
   var SEARCH_ICON = '<svg width="17" height="17" viewBox="0 0 18 18" fill="none">' +
       '<circle cx="8" cy="8" r="5.6" stroke="currentColor" stroke-width="1.7"/>' +
@@ -1183,7 +1222,7 @@
     /* "not listed yet" is always the last row — never a dead end. */
     li = makeRow(rows.length, {
       main : 'My restaurant isn’t listed yet',
-      sec  : 'Brand new, or not on Google — we’ll take it from here',
+      sec  : 'Brand new, or not on Google yet',
       isNew: true
     });
     if (!rows.length) li.classList.remove('usv-opt--new');   // no divider when it stands alone
@@ -1213,25 +1252,29 @@
     setIcon('search');
   }
 
+  /* Reachable two ways: the last row of the dropdown, and the always-visible
+     button under the field. Someone who hasn't named the place yet shouldn't
+     have to type two characters to be offered the way out. */
+  function useNotListed(fillEmpty) {
+    closeList();
+    S.place    = null;
+    S.verified = false;
+    S.match    = 'not_listed';
+    if (fillEmpty || !nameInput.value.trim()) nameInput.value = 'New Restaurant';
+    setIcon('search');
+    /* "not listed" almost always means brand-new, so pre-select it. They can
+       still change it on the next step. */
+    preselectStatus('brand_new_opening');
+    track('place_selected', { place_source: 'not_listed' });
+    clearErr($('usv-f-name'));
+    nameInput.focus();
+  }
+
   function choose(i) {
     var row = rows[i];
     if (!row) return;
 
-    if (row.type === 'new') {
-      closeList();
-      S.place    = null;
-      S.verified = false;
-      S.match    = 'not_listed';
-      if (!nameInput.value.trim()) nameInput.value = 'New Restaurant';
-      setIcon('search');
-      /* "not listed" almost always means brand-new — pre-select it,
-         they can still change it on step 2. */
-      preselectStatus('brand_new_opening');
-      track('place_selected', { place_source: 'not_listed' });
-      clearErr($('usv-f-name'));
-      nameInput.focus();
-      return;
-    }
+    if (row.type === 'new') { useNotListed(false); return; }
 
     var pp = row.suggestion.placePrediction;
     var label = pp.mainText ? String(pp.mainText) : String(pp.text || '');
@@ -1317,7 +1360,11 @@
   });
 
   on(nameInput, 'focus', function () {
-    if (nameInput.value.trim().length >= CFG.MIN_QUERY_CHARS && !S.verified) runSearch();
+    /* Someone who has already said their place isn't listed does not want the
+       list thrown back at them the moment focus returns. Typing again clears
+       that state, which reopens the search on its own. */
+    if (S.verified || S.match === 'not_listed') return;
+    if (nameInput.value.trim().length >= CFG.MIN_QUERY_CHARS) runSearch();
   });
 
   on(nameInput, 'blur', function () { window.setTimeout(closeList, 120); });
@@ -1489,7 +1536,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     var val = emailInput.value.trim();
     if (val === '') return;                       /* not filled in yet, not an error */
     if (!EMAIL_RE.test(val)) {
-      setErr($('usv-f-email'), 'That address is missing something — check for a typo.');
+      setErr($('usv-f-email'), 'That address is missing something. Check for a typo.');
       hideTypo();
       return;
     }
@@ -1661,7 +1708,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     } else {
       txt($('usv-place-name'), name);
       txt($('usv-place-meta'), S.match === 'not_listed'
-        ? 'Not on Google yet — no problem'
+        ? 'Not on Google yet'
         : 'Entered manually');
       check.style.color = 'var(--usv-ink-3)';
       chip.style.borderLeftColor = 'var(--usv-line)';
@@ -1789,7 +1836,13 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
 
   on($('usv-next'), 'click', function () { goStep(2); });
   on($('usv-back'), 'click', function () { goStep(1); });
+  on($('usv-back1'), 'click', function () { S.step = 0; closeList(); showPanel(step0);
+    $('usv-dot2').classList.remove('is-on'); $('usv-dot3').classList.remove('is-on'); });
   on($('usv-place-edit'), 'click', function () { goStep(1); });
+
+  /* The button names its own result, so it overwrites whatever is in the
+     field rather than quietly doing nothing when something is typed. */
+  on($('usv-newbtn'), 'click', function () { useNotListed(true); });
 
   /* =========================================================================
      Bot traps
@@ -2140,7 +2193,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       e.stopPropagation();
       S.submitted = true;
       track('blocked', { reason: trap });
-      showDone('Thanks — we’ve got everything we need. Someone will be in touch shortly.');
+      showDone('We’ve got everything we need. Someone will be in touch shortly.');
       return;
     }
 
@@ -2284,10 +2337,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       if (Places.ok || tries++ > 40) { window.clearInterval(poll); return; }
       initPlaces();
     }, 250);
-
-    /* Nothing about the helper text depends on Google: if Places never
-       loads, this stays a plain, working text field. */
-    if (nameHelp) nameHelp.textContent = 'Haven’t named it yet? Enter “New Restaurant.”';
   }
 
   if (document.readyState === 'loading') {
