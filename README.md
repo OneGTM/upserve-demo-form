@@ -1,13 +1,14 @@
 # Upserve — demo request form (Webflow embed)
 
-Two-step demo request form. Google Places finds the restaurant, a required
-business-type dropdown does the work a CAPTCHA would, and Default's SDK reads
-the finished form straight off the DOM — so Default branches on submitted data
-using the conditional logic it already has.
+Three-step demo request form. It asks who you are before it asks anything
+else, finds the restaurant on Google Places, and posts through Default's SDK
+so Default branches on submitted data with the conditional logic it already
+has.
 
-Default never receives a webhook and never waits on anything mid-workflow. Every
-signal — including the verified flag and the Google place ID — arrives as a plain
-form field.
+The first step is the one that matters most: most of the junk on an inbound
+demo form is not spam, it is people in the wrong place. Diners chasing a
+receipt and existing customers needing support both get answered and sent
+somewhere useful, and neither one creates anything in Default.
 
 ---
 
@@ -26,20 +27,39 @@ form field.
 
 ## Install in Webflow
 
-1. Open the demo-contact page in the Designer.
+```bash
+npm run copy      # builds, then puts webflow/embed.html on your clipboard
+```
+
+1. Open the demo page in the Designer.
 2. Drag an **Embed** element where the form should sit.
-3. Paste all of `webflow/embed.html`.
+3. Paste (the clipboard already holds `webflow/embed.html`).
 4. Save and publish.
 
-That's it. Nothing in Page Settings, no second embed, no external script.
+One paste. Nothing in Page Settings, no second embed, no external script.
+
+> **Paste `webflow/embed.html`, never `src/webflow-embed.html`.** The source is
+> ~95,000 characters — mostly comments — and Webflow will reject it at 50,000.
+> The build strips all 21,000 characters of comments; they cost nothing in the
+> embed, which is why the source stays heavily documented.
+
+`node build.js` prints exactly what to paste and only writes files that are
+actually pasteable, so an oversized file can never sit there waiting to be
+truncated. If the form ever outgrows the cap it splits into
+`embed-part1.html` + `embed-part2.html` and says so.
 
 ### Why there's a build step
 
 Webflow caps a Code Embed at
-[50,000 characters](https://help.webflow.com/hc/en-us/articles/33961332238611-Custom-code-embed).
-The readable source is ~86,400 so `build.js` strips comments, collapses
-whitespace, and shortens the `usv-*` class names. Output is **48,719** — it
-fails loudly if an edit ever pushes it over.
+[50,000 characters](https://help.webflow.com/hc/en-us/articles/33961332238611-Custom-code-embed)
+and **truncates silently** past it. The readable source is ~95,000, so
+`build.js` runs it through terser (compress + mangle), minifies the CSS,
+collapses the markup, and shortens the `usv-*` class names. Output is
+**46,461** — it fails loudly if an edit ever pushes it over.
+
+Terser is worth ~7,200 characters on its own; without it the build still
+works but falls back to comment-and-whitespace stripping and splits into two
+embeds. Run `npm install` to get the single-paste build.
 
 Nothing is renamed inside the JavaScript, so the logic is still readable in
 devtools. Only the CSS class and ID names are shortened; `embed.names.json`
@@ -170,6 +190,70 @@ Sent as `routing_owner`, so Default branches on a plain string.
 
 ---
 
+## The questionnaire
+
+One form, two branches. Step 1 decides which.
+
+| Who they are | Then |
+|---|---|
+| New or returning | Restaurant finder → **restaurant status** → contact |
+| Already a customer | Restaurant finder → **what they need help with** → contact |
+| Ate at a restaurant | Answered and stopped. Nothing submitted. |
+
+All fields are required on both branches: first name, last name, email,
+mobile phone, restaurant name, and the branch question.
+
+### Routing
+
+| Branch | Answer | `routing_owner` |
+|---|---|---|
+| Prospect | Brand-new opening | `AE` |
+| Prospect | Replacing current POS | `AE` |
+| Prospect | Exploring / not sure | `SDR` |
+| Customer | Add a new location | `AM` |
+| Customer | Expand an existing location | `AM` |
+| Customer | Product help | `SUPPORT` |
+| Customer | Account or billing | `SUPPORT` |
+| Customer | Something else | `SUPPORT` |
+
+The question that was **not** asked never reaches Default — a prospect never
+sends `help_topic`, a customer never sends `restaurant_status`. An empty field
+reads as missing data; an absent one reads as not applicable.
+
+### The SUPPORT outcome
+
+A support-shaped request is still **captured** — they have handed over their
+details and a real customer needs answering — but it is tagged
+`routing_owner=SUPPORT` so Default keeps it out of a sales queue, and the
+visitor is shown support routes instead of a scheduler that would never open
+for them.
+
+If you would rather these never reach Default at all, the change is one branch
+in the submit gate.
+
+Support routes come from `CFG.SUPPORT`:
+
+```js
+SUPPORT : [
+  ['Help Center',  'https://help.upserve.com',  'Guides and troubleshooting'],
+  ['Sign in',      'https://upserve.com/login', 'Your account and billing'],
+  ['Call support', 'tel:+18556643887',          '(855) 664-3887']
+]
+```
+
+> **Check these before launch.** A wrong number sends a frustrated customer
+> straight back to this form.
+
+### A note on what was removed
+
+The old "what kind of business is it?" dropdown is gone — it is not in the
+agreed field list. It had been doing double duty as an accidental-submission
+filter, since a required dropdown with no "Other" is the one field autofill
+cannot guess. That role is now covered by the triage step and the branch
+question, which are both required and both demand a real decision. The
+qualification signal it carried (full-service vs quick-service vs bar) is the
+real loss; `place_category` from Google partly replaces it.
+
 ## What gets sent to Default
 
 Default ingests **everything** — all form input plus everything the lookup
@@ -179,7 +263,11 @@ resolved. Empty fields are dropped, so it never sees blank strings.
 in the field itself), `restaurant_name` (the Google display name when one was
 picked, otherwise what they typed).
 
-**Qualification** — `business_type`, `restaurant_status`, `routing_owner`.
+**Qualification** — `visitor_type` (`prospect` / `current_customer`), plus
+either `restaurant_status` or `help_topic` depending on the branch, and
+`routing_owner`.
+
+A diner never submits.
 
 **Place (only when someone picks a Google result)** — `place_id`,
 `place_verified`, `place_source`, `place_maps_url`, `place_address`,
@@ -191,6 +279,27 @@ picked, otherwise what they typed).
 
 `place_source` is `google`, `manual`, or `not_listed`, so Default can tell a
 verified match from a hand-typed name without parsing anything.
+
+### Registering the fields in Default
+
+Default learns its schema **from what a submission contains**. A field that is
+not in a submission never appears in the mapping UI, so every field is sent on
+every submission — blank when unknown — rather than omitted when empty.
+
+The one exception is the branch question: a prospect never sends `help_topic`
+and a customer never sends `restaurant_status`, because there a blank would
+misread as "answered with nothing" instead of "not applicable".
+
+That means **two discovery submissions** register the complete schema:
+
+```
+upserve.com/book-a-demo?updateDefaultFields=true
+```
+
+1. Run it once as **new/returning** → registers everything + `restaurant_status`
+2. Run it once as **already a customer** → adds `help_topic`
+
+Then map them in Default → Webform Fields → Save mappings.
 
 ### Field labels in Default
 
@@ -213,35 +322,15 @@ FIELDS : {
 Edit the right-hand side freely — it only changes what Default displays. The
 left side is the wire name and should stay stable once Default has mapped it.
 
-### Atmosphere fields (off by default)
+### Adding more Places fields
 
-`CFG.PLACE_ATMOSPHERE = true` adds dine-in, takeout, delivery, reservations,
-whether they serve beer/wine/cocktails, meal periods, and Google's editorial
-blurb. Useful for qualifying a restaurant, but these are Places
-"Enterprise + Atmosphere" fields and bill at a higher rate than everything
-else. Add matching `FIELDS` labels for any you turn on.
+The details call requests a fixed list in `choose()`. Adding a field there plus
+a matching `FIELDS` label is all it takes.
 
-**Scoring signals** — none of these gate anyone; they all just travel with the
-lead.
-
-| Field | Values | What it means |
-|---|---|---|
-| `email_type` | `business` / `free` / `disposable` | Free inboxes are welcome — the label is for scoring, not filtering. |
-| `email_domain_match` | `match` / `personal` / `different` / `unknown` | Email domain vs the restaurant's own website from Google. `match` is the strongest "this person really works here" signal available at form time. **`personal` is its own answer, not a miss** — plenty of real operators run the place from a gmail address. |
-| `phone_vs_place` | `exact` / `same_area` / `different` / `unknown` | The number they gave vs the number Google lists for the place. `exact` means they handed over the restaurant's own line. Mobile numbers travel with people, so `different` means nothing on its own. |
-| `place_closed` | `permanently` / `temporarily` / omitted | Google says the listing is shut. Usually a stale pick — sometimes a new operator taking over the space, which is a *good* lead. A permanently closed match pre-selects "brand-new opening" instead of "replacing POS". |
-| `email_domain` | the domain itself | For your own scoring rules. |
-
-**Attribution** — `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`,
-`utm_content`, `gclid`, `landing_page`, `referrer`. First touch is persisted in
-`localStorage` on the visitor's first landing, so a lead who arrives from an ad
-and converts three days later still carries the campaign.
-
-The Default SDK also attaches its own UTM, gclid, referrer and submission URL
-independently. Sending them as explicit fields on top of that is what lets
-Default branch on them in conditional logic.
-
----
+One caveat: service-model fields (dine-in, delivery, serves-alcohol, editorial
+summary) sit in Places' higher-priced *Enterprise + Atmosphere* tier, unlike
+everything currently requested, which all rides in the tier the rating and
+website fields already put us in.
 
 ## The anti-spam layer
 
@@ -267,6 +356,39 @@ floor and the honeypot both complete the flow with zero calls to
 `DefaultSDK.submit`.
 
 ---
+
+## Email and phone validation
+
+Both are checked **on blur** — at the field, while the visitor is still looking
+at it — and again at submit.
+
+**Email** must be `something@something.tld` with a real 2+ letter TLD.
+
+```
+reject   joe@gmail   joe@gmail.c   joe@.com   joe@gmail..com   joe@@x.com
+accept   jamie@tautog.com   joe+tag@gmail.com   chef@my-diner.co.uk
+```
+
+**Phone** is structural NANP: ten digits, area code and exchange may not start
+with 0 or 1, all-same-digit numbers are out. A leading `+` switches to
+international mode (8–15 digits).
+
+```
+reject   1018492900   4010492900   0000000000   401849290   911
+accept   (401) 849-2900   +44 20 7946 0958
+```
+
+### Format only, on purpose
+
+This validates **shape**, not **deliverability**. `joe@totallyfake12345.xyz` is
+correctly formatted and passes; nothing client-side can tell you the domain has
+no mail server. Same for phone — well-formed is not the same as active, and not
+the same as a mobile.
+
+That is a deliberate call, not a gap. Live verification needs a server-side
+lookup, which means a backend, an API bill and latency on a form that currently
+has none of the three. The typo rescue already catches the failure that actually
+happens: a misspelt common domain.
 
 ## Email typo rescue
 
@@ -299,7 +421,31 @@ logging can reach the live site.
 
 ---
 
-## Testing locally
+## Testing
+
+```bash
+npm install
+npx playwright install chromium
+npm test          # builds, then runs 74 checks on desktop + mobile
+```
+
+The suite drives the **built** `webflow/embed.html` — the exact file you paste
+— in a real browser, through user-facing selectors only (`name` attributes,
+roles, visible text). It never reaches into internals, so the class-name
+minifier can rename whatever it likes and the tests still pass.
+
+Default and Google are stubbed, so a run never touches a live service. The two
+assertions that matter most:
+
+- a trap firing results in **zero** submissions reaching Default
+- every field Default receives arrives under a **readable label**, never a slug
+
+It also honours the real 3-second submit floor rather than lowering it for
+tests — which is why each test takes ~3.5s, and why they run in parallel.
+
+CI runs the same suite plus the size and secret guards on every push and PR.
+
+### Manual preview
 
 ```bash
 node build.js
@@ -320,6 +466,27 @@ payload passes Default's validation rules (every response key has a matching
 question, the email-typed question carries a value).
 
 ---
+
+## Funnel tracking
+
+Events push to GTM's `dataLayer`, so drop-off is measurable at every step —
+including how many arrivals were never leads in the first place:
+
+| Event | Fires when |
+|---|---|
+| `usv_form_step0_view` | form renders |
+| `usv_form_visitor_type` | who they said they are |
+| `usv_form_deflected` | a diner was answered and stopped |
+| `usv_form_place_selected` | a Google result or "not listed yet" is picked |
+| `usv_form_step2_view` | step 2 reached — the drop-off denominator |
+| `usv_form_submit` | a real submission goes to Default |
+| `usv_form_blocked` | a trap fired (spam volume, without polluting Default) |
+
+`submit` carries `place_source`, `place_verified` and `routing_owner`.
+
+The whole thing is wrapped in try/catch and creates `dataLayer` if GTM has not
+yet — **analytics can never break a submission**. A test proves it by rigging
+`dataLayer` to throw on access and asserting the submission still lands.
 
 ## Brand
 
@@ -350,8 +517,8 @@ the brand black (`#474747`, `#737373`) rather than off-palette hues.
 - **Mobile viewport.** The layout stacks below 480px, inputs are 16px so iOS
   doesn't zoom on focus, and tap targets measure ~51px. Verified via computed
   styles and the grid rule; worth one pass on a real handset before launch.
-- **Size headroom.** The embed builds to 48,719 of 50,000 characters — about
-  1,300 spare. This is the binding constraint now: a large new section will need
+- **Size.** 46,461 of 50,000 — about 3,500 spare. Past that the build splits
+  into two embeds automatically rather than truncating. This is the binding constraint now: a large new section will need
   something trimmed first. `build.js` fails loudly rather than letting Webflow
   truncate silently. A large new section may need something trimmed; `build.js` will
   tell you rather than letting Webflow truncate silently.

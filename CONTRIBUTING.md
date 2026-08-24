@@ -33,27 +33,47 @@ Never commit straight to `main`.
 the next `node build.js` overwrites your changes.
 
 ```
-src/webflow-embed.html   ->  webflow/embed.html    the paste-ready embed
-                         ->  preview.html          local test, readable source
-                         ->  prototype.html        shareable demo, no live calls
+src/webflow-embed.html   ->  webflow/embed.html   the paste-ready embed
+                         ->  preview.html         local test, readable source
+                         ->  prototype.html       shareable demo, no live calls
 ```
 
-Build outputs are gitignored, including `webflow/embed.html`, because it
-carries the live API key. Clone, add the key, build.
+`npm install` matters for the build, not just the tests: terser is worth ~7,200
+characters, which is the difference between one embed and two. Without it the
+build still works, just larger, and splits into two parts.
+
+Build outputs are gitignored because they carry the live API key. Clone, add
+the key, build.
 
 ## Before you ship
 
 ```bash
-node build.js     # must print "ok" — it exits non-zero over 50,000 chars
+npm test          # builds, then 56 checks on desktop + mobile
 ```
 
 Webflow caps a Code Embed at 50,000 characters and **truncates silently** past
 it. That cap is the one thing here that breaks without an error message, so the
 build guards it and CI runs the same check on every PR.
 
-Then open `preview.html` and put a real submission through with `?demo=1`:
-pick a restaurant, trip the honeypot, trigger the typo rescue. There is no
-automated browser test yet — see "Worth doing next" in the README.
+The suite drives the built files in a real browser with Default and Google
+stubbed, so it never touches a live service. For a manual look, open
+`preview.html` with `?demo=1`.
+
+## Editing the radio cards
+
+The eleven option cards are a table in the script, not markup:
+
+```js
+status: ['restaurant_status',
+  'brand_new_opening;We’re opening a brand-new spot;Not open yet, or opening soon',
+  ...
+```
+
+`value ; title ; description`. Add a row and it renders. As markup this was
+3.8k of scaffolding around 0.7k of copy.
+
+If you add a value, add its routing in `CFG.ROUTING` or `CFG.ROUTING_HELP` —
+an unmapped value falls back to SDR or SUPPORT.
 
 ## Field names are a contract
 

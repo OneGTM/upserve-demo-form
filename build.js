@@ -19,6 +19,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { execFileSync } = require('child_process');
 
 const ROOT = __dirname;
 const SRC = path.join(ROOT, 'src', 'webflow-embed.html');
@@ -33,6 +35,29 @@ const EMBED_LIMIT = 50000;
    `/` inside a character class.
    --------------------------------------------------------------------------- */
 function minifyJs(src) {
+  const bin = path.join(ROOT, 'node_modules', '.bin', 'terser');
+  if (fs.existsSync(bin)) {
+    const tmp = path.join(os.tmpdir(), 'usv-terser-in.js');
+    try {
+      fs.writeFileSync(tmp, src);
+      const out = execFileSync(bin,
+        [tmp, '--compress', '--mangle', '--format', 'quote_style=1'],
+        { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+      fs.unlinkSync(tmp);
+      if (out && out.trim()) return out.trim();
+    } catch (e) {
+      console.warn('  warn: terser failed, falling back to the built-in stripper');
+      console.warn('        ' + String(e.message).split('\n')[0]);
+    }
+  } else {
+    console.warn('  warn: terser not installed — run `npm install` for a smaller build');
+  }
+  return stripAndCollapse(src);
+}
+
+/* The fallback: comment stripping and whitespace collapsing only. Keeps the
+   build working without node_modules, just larger. */
+function stripAndCollapse(src) {
   let out = '';
   let i = 0;
   const n = src.length;
@@ -200,6 +225,13 @@ function minifyHtml(html) {
  */
 function shortenTokens(parts) {
   const TOKEN = /(--)?usv-[a-z0-9-]*/g;
+
+  /* The <form> id is the one name that must not move. Default surfaces it as
+     the "Connected HTML Form ID" and sends it as html_form_id, and the short
+     names are assigned in encounter order — so adding markup above the form
+     would silently rename it. Six extra characters buys a stable identifier. */
+  const KEEP = new Set(["usv-form"]);
+
   const seen = new Map();
   let counter = 0;
 
@@ -212,6 +244,7 @@ function shortenTokens(parts) {
 
   for (const text of parts) {
     for (const m of text.matchAll(TOKEN)) {
+      if (KEEP.has(m[0])) { seen.set(m[0], m[0]); continue; }
       if (!seen.has(m[0])) seen.set(m[0], (m[1] ? '--' : '') + nextName());
     }
   }
@@ -284,7 +317,46 @@ const embed =
   '\n<script>' + outJs + '</script>\n';
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
-fs.writeFileSync(path.join(OUT_DIR, 'embed.html'), embed);
+if (embed.length <= EMBED_LIMIT) fs.writeFileSync(path.join(OUT_DIR, 'embed.html'), embed);
+
+/* Webflow caps ONE Code Embed at 50,000 characters. When the form outgrows
+   that, the sanctioned workaround is a second embed — so emit the split
+   automatically rather than making someone discover the cap by having Webflow
+   truncate their paste. Splitting at the style/script boundary is safe: the
+   markup and CSS land first, the script runs after and finds the DOM waiting.
+
+   embed.html stays the canonical artifact either way — it is what the tests
+   drive, and what any host without a 50k cap can use as-is. */
+const styleEnd = embed.indexOf('</style>') + '</style>'.length;
+const usesSplit = embed.length > EMBED_LIMIT;
+
+if (usesSplit) {
+  const head =
+    '<!-- Upserve demo form — PART 1 of 2: styles + markup.\n' +
+    '     Paste into a Webflow Embed element. Part 2 goes in a SECOND embed\n' +
+    '     directly below this one. Order matters. -->\n' +
+    embed.slice(0, styleEnd) + '\n' +
+    embed.slice(styleEnd, embed.indexOf('<script>')).trim() + '\n';
+  const tail =
+    '<!-- Upserve demo form — PART 2 of 2: logic.\n' +
+    '     Paste into a Webflow Embed element placed AFTER part 1. -->\n' +
+    embed.slice(embed.indexOf('<script>'));
+
+  fs.writeFileSync(path.join(OUT_DIR, 'embed-part1.html'), head);
+  fs.writeFileSync(path.join(OUT_DIR, 'embed-part2.html'), tail);
+  global.__usvSplit = [head.length, tail.length];
+
+  /* embed.html is over the cap and must not be pasted, so it does not get to
+     sit in webflow/ looking like the thing to paste. The parts are the
+     artifact; concatenating them reproduces it exactly if ever needed. */
+  const whole = path.join(OUT_DIR, 'embed.html');
+  if (fs.existsSync(whole)) fs.unlinkSync(whole);
+} else {
+  for (const stale of ['embed-part1.html', 'embed-part2.html']) {
+    const q = path.join(OUT_DIR, stale);
+    if (fs.existsSync(q)) fs.unlinkSync(q);
+  }
+}
 
 /* Names are shortened in the output. Keep the mapping so a minified class seen
    in devtools can be traced back to its source name. */
@@ -370,6 +442,11 @@ function buildPrototypeStub() {
   /* Mimic Default's auto-attach SDK: bind to any form carrying
      data-default-form-id, read the fields off the DOM the way it does, and
      record the payload instead of sending it. */
+  /* Stop the real Default SDK from ever loading here. Without this the embed
+     boots it, it attaches to the form, and a completed prototype submission
+     creates a genuine lead in Default and redirects off the page. */
+  window.__default__loaded = true;
+
   window.__usvSubmissions = [];
   var CB = {};
   window.__default__ = window.__default__ || {};
@@ -501,6 +578,11 @@ function buildPrototypeStub() {
             self.primaryTypeDisplayName = rec.cat || 'Restaurant';
             self.utcOffsetMinutes    = -240;
             self.types               = ['restaurant', 'food', 'point_of_interest'];
+            self.primaryType         = 'restaurant';
+            self.pureServiceAreaBusiness = false;
+            self.internationalPhoneNumber = '+1 ' + String(rec.tel || '').replace(/[^0-9]/g, '');
+            self.priceRange          = { startPrice: { units: 20, currencyCode: 'USD' },
+                                         endPrice:   { units: 40, currencyCode: 'USD' } };
             self.location            = { lat: function () { return rec.lat || 41.4901; },
                                          lng: function () { return rec.lng || -71.3128; } };
             self.regularOpeningHours = {
@@ -570,14 +652,23 @@ function buildPrototypeStub() {
 }
 
 /* --------------------------------------------------------------------------- */
-const spare = EMBED_LIMIT - embed.length;
-const ok = spare >= 0;
 console.log('\nBuilt from src/webflow-embed.html (' + source.length + ' readable chars)\n');
-console.log(
-  '  ' + (ok ? 'ok  ' : 'OVER') + '  webflow/embed.html'.padEnd(26) +
-  String(embed.length).padStart(6) + ' / ' + EMBED_LIMIT + ' chars' +
-  (ok ? '  (' + spare + ' spare)' : '  <-- exceeds the Webflow Embed limit')
-);
-console.log('  ok    preview.html'.padEnd(30) + String(preview.length).padStart(6) + ' chars');
+
+let ok = true;
+if (global.__usvSplit) {
+  const [a, b] = global.__usvSplit;
+  ok = a <= EMBED_LIMIT && b <= EMBED_LIMIT;
+  console.log('  PASTE THESE TWO into Webflow, part 1 first:\n');
+  console.log('  ' + (a <= EMBED_LIMIT ? 'ok  ' : 'OVER') + '  webflow/embed-part1.html'.padEnd(30) +
+              String(a).padStart(6) + ' / ' + EMBED_LIMIT);
+  console.log('  ' + (b <= EMBED_LIMIT ? 'ok  ' : 'OVER') + '  webflow/embed-part2.html'.padEnd(30) +
+              String(b).padStart(6) + ' / ' + EMBED_LIMIT);
+} else {
+  const spare = EMBED_LIMIT - embed.length;
+  console.log('  PASTE THIS into Webflow:\n');
+  console.log('  ok    webflow/embed.html'.padEnd(32) + String(embed.length).padStart(6) +
+              ' / ' + EMBED_LIMIT + '  (' + spare + ' spare)');
+}
+console.log('  ok    preview.html'.padEnd(32) + String(preview.length).padStart(6) + ' chars');
 console.log('  ok    prototype.html\n');
 process.exit(ok ? 0 : 1);
