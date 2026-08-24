@@ -84,8 +84,8 @@
   padding:clamp(6px,1.4vw,18px) clamp(12px,3vw,20px) clamp(16px,3vw,28px);
 }
 #usv-demo .usv-card{
-  width:100%;
-  max-width:720px;
+  width:780px;
+  max-width:100%;
   background:var(--usv-paper);
   border-radius:var(--usv-r);
   box-shadow:var(--usv-shadow);
@@ -663,7 +663,6 @@
               <span class="usv-btn-spin" aria-hidden="true"></span>
               <span id="usv-submit-txt">Book my demo</span>
             </button>
-            <p class="usv-fine" id="usv-fine">Only used to set up your demo.</p>
           </div>
         </section>
       </form>
@@ -2169,17 +2168,14 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   }
   function routesToSupport() { return helpRoute() === 'SUPPORT'; }
 
-  /* Three destinations, three promises. An existing customer adding a
-     terminal is not being sold a demo, and saying so is the fastest way to
-     get the call declined. */
+  /* An existing customer adding a terminal is not being sold a demo, and
+     saying so is the fastest way to get the call declined. The button is the
+     only promise made now, so it has to name the real destination. */
   function paintSubmit() {
     var r = helpRoute();
     txt(submitTxt, r === 'SUPPORT' ? 'Send to support'
                  : r === 'AM'      ? 'Connect with the account team'
                                    : 'Book my demo');
-    txt($('usv-fine'), r === 'SUPPORT' ? 'Only used to answer your question.'
-                     : r === 'AM'      ? 'Only used to put you with the right person.'
-                                       : 'Only used to set up your demo.');
   }
 
   function setBusy(b) {

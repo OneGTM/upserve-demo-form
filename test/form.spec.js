@@ -795,7 +795,7 @@ for (const topic of SUPPORT_TOPICS) {
 
     await expect(page.getByRole('button', { name: /send to support/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /book my demo/i })).toHaveCount(0);
-    await expect(page.getByText(/only used to answer your question/i)).toBeVisible();
+    await expect(page.getByText(/only used to/i)).toHaveCount(0);
   });
 }
 
@@ -825,7 +825,7 @@ test('switching from a support topic back to a booking one restores the label',
     await page.locator('input[value="add_location"]').check({ force: true });
     await expect(page.getByRole('button', { name: /connect with the account team/i }))
       .toBeVisible();
-    await expect(page.getByText(/right person/i)).toBeVisible();
+    await expect(page.getByText(/only used to/i)).toHaveCount(0);
   });
 
 test('a prospect never sees the support label, whatever they pick', async ({ page }) => {
