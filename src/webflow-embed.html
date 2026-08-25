@@ -91,12 +91,12 @@
   box-shadow:var(--usv-shadow);
   padding:clamp(24px,3.4vw,32px) clamp(22px,3.4vw,36px) clamp(24px,3.4vw,34px);
   position:relative;
-  overflow:hidden;
 }
 #usv-demo .usv-card::before{
   content:"";
   position:absolute;top:0;left:0;right:0;height:4px;
   background:var(--usv-yellow);
+  border-radius:var(--usv-r) var(--usv-r) 0 0;
 }
 
 /* --- stepper -------------------------------------------------------------- */
@@ -259,6 +259,7 @@
   display:none;
 }
 #usv-demo .usv-listbox.is-open{display:block;}
+#usv-demo .usv-listbox.is-up{top:auto;bottom:calc(100% + 6px);}
 #usv-demo .usv-opt{
   display:flex;align-items:flex-start;gap:10px;
   padding:10px 10px;border-radius:6px;cursor:pointer;
@@ -1185,6 +1186,23 @@
   var rows = [];      // [{type:'place'|'new', suggestion, el}]
   var active = -1;
 
+  /* The list is absolutely positioned, so nothing reflows to make room for
+     it. Measure what is actually free below the field and either cap the
+     list to it or flip it above, so the fold never cuts it off. Uses the
+     visual viewport where there is one, which is what shrinks under a
+     phone keyboard. */
+  function placeList() {
+    var r  = nameInput.getBoundingClientRect();
+    var vv = window.visualViewport;
+    var vh = vv ? vv.height : window.innerHeight;
+    var off = vv ? vv.offsetTop : 0;
+    var below = vh - (r.bottom - off) - 14;
+    var above = (r.top - off) - 14;
+    var up = below < 160 && above > below;
+    listbox.classList.toggle('is-up', up);
+    listbox.style.maxHeight = Math.max(112, Math.min(296, up ? above : below)) + 'px';
+  }
+
   function closeList() {
     listbox.classList.remove('is-open');
     listbox.innerHTML = '';
@@ -1264,6 +1282,7 @@
       listbox.appendChild(attr);
     }
 
+    placeList();
     listbox.classList.add('is-open');
     nameInput.setAttribute('aria-expanded', 'true');
     highlight(-1);
@@ -1397,6 +1416,16 @@
   });
 
   on(nameInput, 'blur', function () { window.setTimeout(closeList, 120); });
+
+  /* a phone keyboard opening changes what "below" means */
+  on(window, 'resize', function () {
+    if (listbox.classList.contains('is-open')) placeList();
+  });
+  if (window.visualViewport) {
+    on(window.visualViewport, 'resize', function () {
+      if (listbox.classList.contains('is-open')) placeList();
+    });
+  }
 
   on(nameInput, 'keydown', function (e) {
     var open = listbox.classList.contains('is-open');
