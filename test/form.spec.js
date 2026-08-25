@@ -992,3 +992,50 @@ test('a support-bound customer never causes the Maps SDK to load twice',
     await continueToStep2(page);
     expect(await page.evaluate(() => window.__placesLoads)).toBe(after);
   });
+
+/* ── the suggestion list must never be cut off ───────────────────────────── */
+
+test('the card does not clip its own dropdown', async ({ page }) => {
+  await open(page);
+  const input = page.locator('[role="combobox"]');
+  await input.click();
+  await input.fill('Tautog');
+  await page.locator('[role="option"]').first().waitFor({ state: 'visible' });
+
+  const r = await page.evaluate(() => {
+    const lb = document.querySelector('[role="listbox"]');
+    const card = lb.closest('form').parentElement;
+    const b = lb.getBoundingClientRect(), c = card.getBoundingClientRect();
+    return { clips: getComputedStyle(card).overflow !== 'visible',
+             extendsPastCardBy: Math.round(b.bottom - c.bottom) };
+  });
+  // it legitimately hangs below the short finder step, so the card must not clip
+  expect(r.clips, 'the card is clipping again').toBe(false);
+  expect(r.extendsPastCardBy).toBeGreaterThan(0);
+});
+
+test('the dropdown stays inside the viewport, flipping above the field if it must',
+  async ({ page }, testInfo) => {
+    // a short viewport with the form pushed down: the classic cut-off case
+    await page.setViewportSize({ width: testInfo.project.name === 'mobile' ? 390 : 740,
+                                 height: 380 });
+    await page.setContent(HTML.replace('<body>', '<body><div style="height:320px"></div>'),
+                          { waitUntil: 'load' });
+    await page.waitForFunction(() => !!document.querySelector('[role="combobox"]'));
+    await page.locator('input[value="prospect"]').check({ force: true });
+    await clickContinue(page);
+    const input = page.locator('[role="combobox"]');
+    await input.click();
+    await input.fill('Tautog');
+    await page.locator('[role="option"]').first().waitFor({ state: 'visible' });
+
+    const r = await page.evaluate(() => {
+      const lb = document.querySelector('[role="listbox"]');
+      const b = lb.getBoundingClientRect();
+      return { top: Math.round(b.top), bottom: Math.round(b.bottom),
+               vh: window.innerHeight, height: Math.round(b.height) };
+    });
+    expect(r.height, 'the list collapsed to nothing').toBeGreaterThan(60);
+    expect(r.bottom, 'runs past the bottom of the screen').toBeLessThanOrEqual(r.vh);
+    expect(r.top, 'runs off the top of the screen').toBeGreaterThanOrEqual(0);
+  });
