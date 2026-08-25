@@ -154,7 +154,9 @@ const STUB = `<script>
 
   window.google = window.google || {};
   window.google.maps = window.google.maps || {};
+  window.__placesLoads = 0;      // so a test can prove it is not fetched early
   window.google.maps.importLibrary = function (n) {
+    if (n === 'places') window.__placesLoads++;
     return Promise.resolve(n === 'places' ? PLACES : {});
   };
 }());
@@ -180,7 +182,11 @@ function page() {
   const embed = raw
     .replace(/GOOGLE_MAPS_API_KEY\s*:\s*'[^']*'/, "GOOGLE_MAPS_API_KEY:'TEST'");
 
+  // The host page sets this, and mobile emulation depends on it: without it the
+  // layout viewport falls back to 980px, so a phone-sized run silently measures
+  // the desktop layout. upserve.com sets exactly this.
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>form under test</title></head><body>
 ${STUB}
 ${embed}

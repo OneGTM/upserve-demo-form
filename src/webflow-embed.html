@@ -37,7 +37,7 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400;1,9..144,600&family=Lato:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Lato:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
 /* ===========================================================================
@@ -156,9 +156,13 @@
 @media (max-width:559px){#usv-demo .usv-row2{grid-template-columns:1fr;gap:0;}}
 
 #usv-demo .usv-labelrow{
-  display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+  display:flex;align-items:baseline;justify-content:space-between;gap:2px 14px;
+  flex-wrap:wrap;   /* narrow phones: the shortcut drops below rather than
+                       squeezing the label into three lines */
 }
-#usv-demo .usv-labelrow .usv-label{margin-bottom:7px;}
+/* a basis, so the row wraps the shortcut onto its own line instead of the
+   label silently shrinking into three */
+#usv-demo .usv-labelrow .usv-label{margin-bottom:7px;flex:1 1 200px;}
 #usv-demo label.usv-label{
   display:block;
   font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
@@ -199,10 +203,6 @@
 }
 #usv-demo .usv-newbtn:hover{background:var(--usv-yellow);}
 #usv-demo .usv-newbtn:focus-visible{outline:2px solid var(--usv-ink);outline-offset:2px;}
-#usv-demo .usv-select{
-  padding-right:38px;cursor:pointer;
-  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5l5-5' stroke='%23737373' stroke-width='1.8' fill='none'/%3E%3C/svg%3E") no-repeat right 14px center/12px 8px,var(--usv-paper);
-}
 #usv-demo .usv-help{
   font-size:13px;line-height:1.45;color:var(--usv-ink-3);
   margin:7px 0 0;
@@ -451,6 +451,21 @@
 #usv-demo .usv-links span{
   font-weight:400;font-size:13.5px;color:var(--usv-ink-3);text-align:right;
 }
+/* These are text-sized, so their hit area was only as tall as the text. A
+   pseudo-element grows the target without moving anything or changing how they
+   look - the same trick the radio cards already use. Each one is grown only
+   into space nothing else claims, so no two targets overlap. */
+#usv-demo .usv-back-top,#usv-demo .usv-place-edit,#usv-demo .usv-newbtn,
+#usv-demo .usv-typo-no,#usv-demo .usv-typo-btn{position:relative;}
+#usv-demo .usv-back-top::after,#usv-demo .usv-place-edit::after{
+  content:"";position:absolute;inset:-13px -10px;
+}
+/* upwards only: the field label is to its left and the input just below */
+#usv-demo .usv-newbtn::after{content:"";position:absolute;inset:-18px -2px -4px;}
+/* these two sit side by side with a 7px gap, so they barely grow sideways */
+#usv-demo .usv-typo-no::after,#usv-demo .usv-typo-btn::after{
+  content:"";position:absolute;inset:-11px -3px;
+}
 #usv-demo .usv-sr{
   position:absolute;width:1px;height:1px;padding:0;margin:-1px;
   overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
@@ -546,22 +561,6 @@
             </div>
 
             <p class="usv-err" id="usv-name-err">Tell us your restaurant or business name.</p>
-          </div>
-
-          <!-- Doubles as the bot check: a required choice with no "Other" to
-               fall through to. Kept on this step so the details step, which
-               is already the tall one, does not grow. -->
-          <div class="usv-field" id="usv-f-btype">
-            <label class="usv-label" for="usv-btype">What kind of business is it?<span class="usv-req">*</span></label>
-            <select class="usv-input usv-select" id="usv-btype" name="business_type">
-              <option value="">Select one&hellip;</option>
-              <option value="full_service">Full service</option>
-              <option value="quick_service">Quick service</option>
-              <option value="fine_dining">Fine dining</option>
-              <option value="enterprise">Enterprise or multi-location</option>
-              <option value="non_restaurant">Non-restaurant</option>
-            </select>
-            <p class="usv-err" id="usv-btype-err">Choose the closest match.</p>
           </div>
 
 
@@ -1076,6 +1075,23 @@
     return Places.token;
   }
 
+  /* The Maps SDK is over a megabyte and the finder is on step 2, so nothing
+     is fetched until the visitor shows they are heading there. Warmed on the
+     triage choice, which buys a whole step of lead time before they type, and
+     again on focus in case they arrive by some other route. Calling it twice
+     is free: the loader fetches once and this guards on top of that. */
+  var placesWarmed = false;
+  function warmPlaces() {
+    if (placesWarmed) return;
+    placesWarmed = true;
+    initPlaces();
+    var tries = 0;
+    var poll = window.setInterval(function () {
+      if (Places.ok || tries++ > 40) { window.clearInterval(poll); return; }
+      initPlaces();
+    }, 250);
+  }
+
   function initPlaces() {
     var key = CFG.GOOGLE_MAPS_API_KEY;
     if (!key || key.indexOf('REPLACE_') === 0) return;
@@ -1136,7 +1152,6 @@
 
   /* --- combobox DOM --------------------------------------------------------- */
   var nameInput = $('usv-name');
-  var btypeInput = $('usv-btype');
   var listbox   = $('usv-listbox');
   var nameIcon  = $('usv-name-icon');
 
@@ -1373,6 +1388,7 @@
   });
 
   on(nameInput, 'focus', function () {
+    warmPlaces();
     /* Someone who has already said their place isn't listed does not want the
        list thrown back at them the moment focus returns. Typing again clears
        that state, which reopens the search on its own. */
@@ -1665,8 +1681,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     if (name.length < 2) { setErr($('usv-f-name'), 'Tell us your restaurant or business name.'); ok = false; }
     else clearErr($('usv-f-name'));
 
-    if (!btypeInput.value) { setErr($('usv-f-btype')); ok = false; }
-    else clearErr($('usv-f-btype'));
 
 
     return ok;
@@ -1826,6 +1840,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   for (var vi = 0; vi < visitorInputs.length; vi++) {
     on(visitorInputs[vi], 'change', function () {
       paintStatus();
+      warmPlaces();
       clearErr($('usv-f-visitor'));
     });
   }
@@ -1849,7 +1864,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   /* The button names its own result, so it overwrites whatever is in the
      field rather than quietly doing nothing when something is typed. */
   on($('usv-newbtn'), 'click', function () { useNotListed(true); });
-  on(btypeInput, 'change', function () { clearErr($('usv-f-btype')); });
 
   /* =========================================================================
      Bot traps
@@ -2385,13 +2399,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
         'Set CFG.GOOGLE_MAPS_API_KEY at the top of the embed to turn it on.');
     }
 
-    /* Google may already be there (another embed), or arrive a moment later. */
-    initPlaces();
-    var tries = 0;
-    var poll = window.setInterval(function () {
-      if (Places.ok || tries++ > 40) { window.clearInterval(poll); return; }
-      initPlaces();
-    }, 250);
   }
 
   if (document.readyState === 'loading') {
