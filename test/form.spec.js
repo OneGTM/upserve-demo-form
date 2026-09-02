@@ -11,7 +11,7 @@
 'use strict';
 
 const { test, expect } = require('@playwright/test');
-const { page: buildPage } = require('./harness');
+const { page: buildPage, pageInWebflowColumn } = require('./harness');
 
 const HTML = buildPage();
 
@@ -1088,3 +1088,80 @@ test('the paired fields stack on their own width, not the viewport',
     await page.waitForTimeout(80);
     expect(await sideBySide()).toEqual({ names: false, contact: false });
   });
+
+
+/* ── the embed inside Webflow's own container ────────────────────────────── */
+
+/**
+ * Everything above drops the embed straight into <body>, where the parent is a
+ * plain block and max-width:100% is enough. Webflow's Embed wrapper is
+ * display:flex, which makes the form root a flex item — and a flex item's
+ * min-width:auto floors it at its min-content width, overriding max-width. A
+ * fixed `width` anywhere inside therefore travels up and blows the column out.
+ *
+ * That shipped once: the card carried width:780px, so on upserve.com/book-a-demo
+ * the root measured 804px inside a 320px column, sat at left:-202px, and the
+ * page scrolled sideways with the form's left edge cut off.
+ */
+const FLEX_WIDTHS = [320, 360, 390, 400, 430, 768, 1440];
+
+for (const width of FLEX_WIDTHS) {
+  test('the embed fits Webflow\'s flex column at ' + width + 'px',
+    async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.setContent(pageInWebflowColumn(), { waitUntil: 'load' });
+      await page.waitForFunction(() => !!document.querySelector('input[value="prospect"]'));
+      await page.waitForTimeout(150);
+
+      const m = await page.evaluate(() => {
+        const wrap = document.querySelector('.code-embed');
+        const root = wrap.querySelector(':scope > div:not([style])') || wrap.firstElementChild;
+        const w = wrap.getBoundingClientRect(), r = root.getBoundingClientRect();
+        return {
+          over: document.documentElement.scrollWidth - window.innerWidth,
+          wrapW: Math.round(w.width),
+          rootW: Math.round(r.width),
+          rootLeft: Math.round(r.left),
+          wrapLeft: Math.round(w.left),
+        };
+      });
+
+      // the page must not scroll sideways
+      expect(m.over, 'page overflows by ' + m.over + 'px').toBeLessThanOrEqual(0);
+      // and the form must not be wider than the column it was given
+      expect(m.rootW, 'form root ' + m.rootW + 'px in a ' + m.wrapW + 'px column')
+        .toBeLessThanOrEqual(m.wrapW);
+      // nor hang off its left edge, which is how the clipping showed up
+      expect(m.rootLeft).toBeGreaterThanOrEqual(m.wrapLeft - 1);
+    });
+}
+
+/**
+ * The direct cause, asserted on its own so the reason survives even if the
+ * layout above is rearranged: nothing in the embed may declare a fixed width,
+ * because a fixed width becomes a min-content floor that escapes any container.
+ */
+test('no element in the shipped embed declares a fixed pixel width', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const dir = path.join(__dirname, '..', 'webflow');
+  const files = ['embed.html', 'embed-part1.html', 'embed-part2.html']
+    .map((f) => path.join(dir, f))
+    .filter((f) => fs.existsSync(f));
+  expect(files.length).toBeGreaterThan(0);
+
+  const offenders = [];
+  for (const f of files) {
+    const css = (fs.readFileSync(f, 'utf8').match(/<style>([\s\S]*?)<\/style>/) || ['', ''])[1];
+    // three digits or more, so 19px marks and 16px icons stay legal
+    const re = /[^-a-z]width\s*:\s*(\d{3,})px/g;
+    let m;
+    while ((m = re.exec(css))) {
+      // max-width and min-width are caps, not intrinsic sizes — those are fine
+      const before = css.slice(Math.max(0, m.index - 4), m.index + 1);
+      if (/max-|min-/.test(before)) continue;
+      offenders.push(path.basename(f) + ': ' + m[0].trim());
+    }
+  }
+  expect(offenders).toEqual([]);
+});
