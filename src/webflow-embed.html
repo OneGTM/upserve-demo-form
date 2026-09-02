@@ -151,9 +151,21 @@
 
 /* --- fields --------------------------------------------------------------- */
 #usv-demo .usv-field{margin:0 0 16px;position:relative;}
-#usv-demo .usv-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;}
-@media (max-width:439px){#usv-demo .usv-row{grid-template-columns:1fr;gap:0;}}
-@media (max-width:559px){#usv-demo .usv-row2{grid-template-columns:1fr;gap:0;}}
+/* These stack on the space the row actually has, not on the viewport. A media
+   query would have been wrong wherever the embed sits in a narrow Webflow
+   column on a wide screen - and wrong again in the other direction. auto-fit
+   drops to one column the moment two would be cramped, at any breakpoint.
+   min() keeps the floor from overflowing a container narrower than the floor.
+   Row gap is 0 because .usv-field already carries its own bottom margin. */
+#usv-demo .usv-row{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(178px,100%),1fr));
+  column-gap:14px;row-gap:0;
+  align-items:start;
+}
+/* email + phone need more room before they are worth splitting than the two
+   name fields do */
+#usv-demo .usv-row2{grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));}
 
 #usv-demo .usv-labelrow{
   display:flex;align-items:baseline;justify-content:space-between;gap:2px 14px;
