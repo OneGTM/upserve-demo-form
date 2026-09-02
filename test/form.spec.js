@@ -1058,3 +1058,33 @@ test('the shareable prototype tells phones to use their own width', () => {
   expect(html.slice(0, 1024)).toMatch(/<meta\s+charset=["']utf-8["']/i);
 });
 
+/**
+ * The two-up rows have to stack on the width the row actually has, not on the
+ * width of the phone. The embed drops into whatever Webflow column it is given,
+ * so a viewport media query is right only when those two happen to agree.
+ */
+test('the paired fields stack on their own width, not the viewport',
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 1000 });
+    await open(page);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+
+    const sideBySide = async () => page.evaluate(() => {
+      const box = (n) => document.querySelector('input[name="' + n + '"]')
+        .getBoundingClientRect();
+      const pair = (a, b) => Math.abs(box(a).top - box(b).top) < 4;
+      return { names: pair('first_name', 'last_name'),
+               contact: pair('email', 'phone') };
+    });
+
+    // Wide viewport, wide column: both pairs share a line.
+    expect(await sideBySide()).toEqual({ names: true, contact: true });
+
+    // Same wide viewport, narrow column - the shape of an embed dropped into a
+    // sidebar. A viewport media query would leave both pairs crushed side by
+    // side; sizing on the row's own width stacks them.
+    await page.addStyleTag({ content: 'body{max-width:380px;}' });
+    await page.waitForTimeout(80);
+    expect(await sideBySide()).toEqual({ names: false, contact: false });
+  });
