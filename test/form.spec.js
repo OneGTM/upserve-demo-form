@@ -1039,3 +1039,22 @@ test('the dropdown stays inside the viewport, flipping above the field if it mus
     expect(r.bottom, 'runs past the bottom of the screen').toBeLessThanOrEqual(r.vh);
     expect(r.top, 'runs off the top of the screen').toBeGreaterThanOrEqual(0);
   });
+
+/**
+ * prototype.html is the link that gets handed round, and it is opened on
+ * phones. Without a meta viewport a phone lays it out at 980px and scales the
+ * whole thing down, so the form arrives as an unreadable miniature desktop and
+ * none of the narrow-width layout ever runs. It is a one-line omission that
+ * looks exactly like "the mobile layout is broken", so it gets a test.
+ */
+test('the shareable prototype tells phones to use their own width', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'prototype.html'), 'utf8');
+
+  // A phone-width layout viewport, standards mode, and a declared encoding.
+  expect(html).toMatch(/<meta\s+name=["']viewport["'][^>]*width=device-width/i);
+  expect(html.slice(0, 200)).toMatch(/<!doctype html>/i);
+  expect(html.slice(0, 1024)).toMatch(/<meta\s+charset=["']utf-8["']/i);
+});
+
