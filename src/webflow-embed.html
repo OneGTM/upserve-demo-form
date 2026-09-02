@@ -73,19 +73,33 @@
   -webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;
   box-sizing:border-box;
+
+  /* Webflow's Embed wrapper is display:flex, which makes this a flex item, and
+     a flex item's min-width:auto floors it at its own min-content width. That
+     floor beats max-width, so the form would refuse to shrink into a narrow
+     column and push the whole page sideways. Grid parents do the same thing.
+     Opting out of the automatic minimum is what lets the embed fit whatever
+     Webflow hands it. */
+  max-width:100%;
+  min-width:0;
 }
 #usv-demo *,#usv-demo *::before,#usv-demo *::after{box-sizing:border-box;}
 
 /* --- stage ---------------------------------------------------------------- */
 #usv-demo .usv-stage{
   width:100%;
+  min-width:0;
   display:flex;
   justify-content:center;
   padding:clamp(6px,1.4vw,18px) clamp(12px,3vw,20px) clamp(16px,3vw,28px);
 }
 #usv-demo .usv-card{
-  width:780px;
-  max-width:100%;
+  /* max-width, never a fixed width: a fixed width becomes this element's
+     min-content contribution and travels up to whatever flex or grid parent
+     the embed lands in. Same rendering, no floor. */
+  width:100%;
+  max-width:780px;
+  min-width:0;
   background:var(--usv-paper);
   border-radius:var(--usv-r);
   box-shadow:var(--usv-shadow);

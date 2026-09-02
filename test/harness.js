@@ -193,4 +193,35 @@ ${embed}
 </body></html>`;
 }
 
-module.exports = { page };
+/**
+ * The same embed, wrapped in the container chain upserve.com actually puts it
+ * in — measured off the live page.
+ *
+ * The detail that matters is `.code-embed{display:flex}`: Webflow's Embed
+ * wrapper is a flex container, which makes the form root a flex ITEM. A flex
+ * item's min-width:auto floors it at its own min-content width, and that floor
+ * beats max-width. Dropping the embed straight into <body> — which is what
+ * page() does — never exercises this, so the whole class of bug is invisible
+ * to every test that uses it.
+ */
+function pageInWebflowColumn() {
+  const inner = page();
+  const body = inner.slice(inner.indexOf('<body>') + 6, inner.lastIndexOf('</body>'));
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>form in a Webflow column</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  body{margin:0}
+  .container-79 {display:flex;max-width:1440px;margin:0 auto;padding:0 15px}
+  .container-104{display:flex;max-width:380px;margin:0 auto;padding:0 5px}
+  .div-block-102{max-width:360px}
+  .code-embed  {display:flex}
+</style></head><body>
+<section><div class="container-79"><div class="container-104"><div class="div-block-102">
+<div class="code-embed">${body}</div>
+</div></div></section>
+</body></html>`;
+}
+
+module.exports = { page, pageInWebflowColumn };
