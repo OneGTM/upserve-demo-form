@@ -220,7 +220,11 @@
 }
 
 #usv-demo .usv-newbtn{
-  flex:0 0 auto;
+  /* Matches .usv-label's 7px. On a phone this shortcut wraps onto its own
+     line, and without the margin it sits flush on the input - close enough
+     that the yellow underline is lost against the focus ring and the whole
+     thing reads as a second label rather than something you can tap. */
+  flex:0 0 auto;margin-bottom:7px;
   font-family:var(--usv-sans);font-size:13px;font-weight:700;
   color:var(--usv-ink);background:none;border:0;padding:0;cursor:pointer;
   text-decoration:underline;text-decoration-color:var(--usv-yellow);
@@ -569,7 +573,7 @@
             <div class="usv-labelrow">
               <label class="usv-label" for="usv-name">Restaurant or business name<span class="usv-req">*</span></label>
               <button type="button" class="usv-newbtn" id="usv-newbtn"
-                      aria-label="Use New Restaurant as the name">Use &ldquo;New Restaurant&rdquo;</button>
+                      aria-label="If you are a new business, use New Restaurant as the name">If you&rsquo;re a new business use &ldquo;New Restaurant&rdquo;</button>
             </div>
 
             <div class="usv-combo">
