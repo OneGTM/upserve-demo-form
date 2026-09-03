@@ -12,8 +12,15 @@ cp config.example.json config.local.json
 node build.js
 ```
 
-`config.local.json` is gitignored. **A client's API key must never be
-committed** — CI fails the build if an `AIza…` key appears in a tracked file.
+`config.local.json` is gitignored, and the tracked source keeps a
+placeholder. **The one committed file that carries the live key is
+`webflow/embed.html`** — deliberately, so the paste-ready embed is in the repo
+and installing the form needs no build. CI fails if an `AIza…` key appears in
+any *other* tracked file, `src/webflow-embed.html` above all.
+
+That exception rides on **this repo being private.** If it ever goes public
+again, re-ignore `webflow/embed.html`, restore the blanket CI check, and rotate
+the key.
 
 ## The loop
 
@@ -42,8 +49,10 @@ src/webflow-embed.html   ->  webflow/embed.html   the paste-ready embed
 characters, which is the difference between one embed and two. Without it the
 build still works, just larger, and splits into two parts.
 
-Build outputs are gitignored because they carry the live API key. Clone, add
-the key, build.
+`webflow/embed.html` is committed, so a fresh clone can paste the form
+straight into Webflow. The other build outputs (`preview.html`,
+`prototype.html`, the split embeds) stay gitignored — add the key to
+`config.local.json` and build to get them.
 
 ## Before you ship
 

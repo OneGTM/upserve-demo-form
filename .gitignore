@@ -1,9 +1,12 @@
 # Secrets — never commit a client's API key
 config.local.json
 
-# Build output. Run `node build.js` to regenerate; the embed carries the live
-# API key, so it stays out of history.
-webflow/embed.html
+# Build output. Run `node build.js` to regenerate.
+#
+# webflow/embed.html is the exception: it IS committed, key and all, so the
+# paste-ready file is in the repo and nobody has to build to install the form.
+# That is only safe because this repo is private — if it ever goes public
+# again, re-ignore it and rotate the key.
 webflow/embed-part1.html
 webflow/embed-part2.html
 preview.html
