@@ -224,7 +224,13 @@
      line, and without the margin it sits flush on the input - close enough
      that the yellow underline is lost against the focus ring and the whole
      thing reads as a second label rather than something you can tap. */
-  flex:0 0 auto;margin-bottom:7px;
+  margin-bottom:7px;
+  /* 0 1 auto, not 0 0 auto: the label row is the one place a long string has
+     nowhere to go. Pinned at its intrinsic width this sentence is 266px and
+     spills out of the card on a narrow phone - and the embed sits inside
+     whatever padding the Webflow page wraps it in, so the usable width is a
+     good deal less than the viewport. Allowed to shrink, it wraps instead. */
+  flex:0 1 auto;max-width:100%;text-align:left;
   font-family:var(--usv-sans);font-size:13px;font-weight:700;
   color:var(--usv-ink);background:none;border:0;padding:0;cursor:pointer;
   text-decoration:underline;text-decoration-color:var(--usv-yellow);

@@ -1137,6 +1137,71 @@ for (const width of FLEX_WIDTHS) {
 }
 
 /**
+ * The tests above measure the form root against the column it was given, which
+ * is the failure that shipped first. They say nothing about a single control
+ * spilling out of the card while the root itself stays honest - and that
+ * shipped too: the "If you're a new business use ..." shortcut sat on the
+ * label row at flex:0 0 auto, so once its 266px of text outgrew the row it
+ * hung over the card's right edge instead of wrapping. Nothing caught it,
+ * because the root was still the right width and the page still did not
+ * scroll sideways; only the text was outside the card.
+ *
+ * The widths here are deliberately below FLEX_WIDTHS' 320px floor. The embed
+ * sits inside whatever padding the Webflow page wraps it in, so the width the
+ * card actually gets is well under the viewport - at a 320px viewport this
+ * harness leaves the label row 252 usable pixels.
+ */
+const SPILL_WIDTHS = [320, 300, 280];
+
+for (const width of SPILL_WIDTHS) {
+  test('no control spills out of the card at ' + width + 'px',
+    async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.setContent(pageInWebflowColumn(), { waitUntil: 'load' });
+      await page.waitForFunction(() => !!document.querySelector('input[value="prospect"]'));
+      await page.waitForTimeout(150);
+      await page.locator('input[value="prospect"]').check({ force: true });
+      await page.locator('button:visible').filter({ hasText: /continue/i }).first().click();
+      await page.waitForTimeout(250);
+
+      const spills = await page.evaluate(() => {
+        // The build minifies every class name, so the card is found by what it
+        // looks like rather than what it is called: the nearest ancestor of the
+        // name field that paints itself white and carries real padding.
+        let card = document.querySelector('[name="restaurant_name"]');
+        while (card && card !== document.body) {
+          const c = getComputedStyle(card);
+          if (c.backgroundColor === 'rgb(255, 255, 255)'
+              && parseFloat(c.paddingLeft) >= 16) break;
+          card = card.parentElement;
+        }
+        const cs = getComputedStyle(card);
+        const box = card.getBoundingClientRect();
+        const left = box.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+        const right = box.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight);
+        const out = [];
+        for (const el of card.querySelectorAll('*')) {
+          // Overlays (the suggestion list) place themselves and are allowed out.
+          const s = getComputedStyle(el);
+          if (s.position === 'absolute' || s.position === 'fixed') continue;
+          if (!el.getClientRects().length) continue;
+          const r = el.getBoundingClientRect();
+          if (!r.width && !r.height) continue;
+          // Screen-reader-only text is parked far off to the left on purpose.
+          if (r.right <= 0) continue;
+          if (r.right > right + 1 || r.left < left - 1) {
+            out.push((el.id || el.className || el.tagName) + ' by ' +
+                     Math.round(Math.max(r.right - right, left - r.left)) + 'px');
+          }
+        }
+        return out;
+      });
+
+      expect(spills, 'spilling out of the card: ' + spills.join(', ')).toEqual([]);
+    });
+}
+
+/**
  * The direct cause, asserted on its own so the reason survives even if the
  * layout above is rearranged: nothing in the embed may declare a fixed width,
  * because a fixed width becomes a min-content floor that escapes any container.
