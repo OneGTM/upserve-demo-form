@@ -17,7 +17,7 @@ somewhere useful, and neither one creates anything in Default.
 | File | What it is |
 |---|---|
 | `src/webflow-embed.html` | **Source of truth.** Markup + CSS + logic, commented. Edit this. |
-| `webflow/embed.html` | Generated. **One paste, one Embed element.** |
+| `webflow/embed.html` | Generated but **committed**, live key included. **One paste, one Embed element.** |
 | `webflow/embed.names.json` | Generated. Minified class name → source name, for devtools. |
 | `preview.html` | Generated. Open locally to test the readable source. |
 | `prototype.html` | Generated. Shareable demo with Default and Google stubbed. |
@@ -26,6 +26,10 @@ somewhere useful, and neither one creates anything in Default.
 ---
 
 ## Install in Webflow
+
+`webflow/embed.html` is committed with the key already in it, so you can copy
+it straight out of the repo — no clone, no build, no `config.local.json`. On a
+machine that has the repo:
 
 ```bash
 npm run copy      # builds, then puts webflow/embed.html on your clipboard
@@ -109,9 +113,10 @@ cp config.example.json config.local.json
 node build.js
 ```
 
-`config.local.json` is gitignored, the tracked source keeps a placeholder, and
-CI fails if a key ever appears in a tracked file. `build.js` injects it at
-build time.
+`config.local.json` is gitignored and the tracked source keeps a placeholder;
+`build.js` injects the key at build time. The built `webflow/embed.html` is
+committed with the key in it — safe only because this repo is private — and CI
+fails if a key appears in any other tracked file.
 
 In Google Cloud Console:
 

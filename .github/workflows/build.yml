@@ -46,10 +46,24 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
-      - name: No API key may reach the repo
+      - name: No API key may reach the repo, except the committed embed
         run: |
-          if grep -rIn --exclude-dir=.git --exclude=build.yml -E "AIza[0-9A-Za-z_-]{35}" . ; then
-            echo "::error::A Google API key is present in tracked files. Keys belong in config.local.json."
+          # webflow/embed.html is committed on purpose, live key and all, so the
+          # paste-ready file ships in the repo. That is only acceptable while
+          # this repo is private. Everything else must stay clean - above all
+          # src/webflow-embed.html, which is where a stray paste would land.
+          #
+          # -l lists filenames: a match inside the minified embed would
+          # otherwise dump 47,000 characters into the log. The sed normalises
+          # grep's leading "./", which GNU grep emits and BSD grep does not.
+          HITS=$(grep -rIl --exclude-dir=.git --exclude-dir=node_modules \
+                   --exclude=build.yml -E "AIza[0-9A-Za-z_-]{35}" . \
+                 | sed 's|^\./||' \
+                 | grep -vx 'webflow/embed.html' || true)
+          if [ -n "$HITS" ]; then
+            echo "Files containing a Google API key:"
+            echo "$HITS"
+            echo "::error::A Google API key is present outside webflow/embed.html. Keys belong in config.local.json."
             exit 1
           fi
           echo "clean"
