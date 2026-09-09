@@ -18,6 +18,7 @@ somewhere useful, and neither one creates anything in Default.
 |---|---|
 | `src/webflow-embed.html` | **Source of truth.** Markup + CSS + logic, commented. Edit this. |
 | `webflow/embed.html` | Generated but **committed**, live key included. **One paste, one Embed element.** |
+| `webflow/embed-revenue.html` | The same form plus the annual revenue question. Same deal: one paste. |
 | `webflow/embed.names.json` | Generated. Minified class name → source name, for devtools. |
 | `preview.html` | Generated. Open locally to test the readable source. |
 | `prototype.html` | Generated. Shareable demo with Default and Google stubbed. |
@@ -32,15 +33,29 @@ it straight out of the repo — no clone, no build, no `config.local.json`. On a
 machine that has the repo:
 
 ```bash
-npm run copy      # builds, then puts webflow/embed.html on your clipboard
+npm run copy            # webflow/embed.html on your clipboard
+npm run copy:revenue    # webflow/embed-revenue.html instead
 ```
 
 1. Open the demo page in the Designer.
 2. Drag an **Embed** element where the form should sit.
-3. Paste (the clipboard already holds `webflow/embed.html`).
+3. Paste (the clipboard already holds the variant you copied).
 4. Save and publish.
 
 One paste. Nothing in Page Settings, no second embed, no external script.
+
+### Sizing the Embed element
+
+Give the Embed element the **full width of whatever column it sits in** and
+leave it at that — no fixed width, no fixed height, no min-height, no padding
+tuned to the form. Every constraint the form needs is already in its own CSS:
+it centres itself, caps at 780px, shrinks to 280px, and sets its own responsive
+padding. Sizing it a second time in the Designer only gives the two a chance to
+disagree — and the Designer's copy is invisible to the tests, so a layout bug
+introduced there is one nobody can reproduce from the repo.
+
+The one thing that *is* worth setting in Webflow is the vertical space around
+the embed, since that belongs to the page, not the form.
 
 > **Paste `webflow/embed.html`, never `src/webflow-embed.html`.** The source is
 > ~95,000 characters — mostly comments — and Webflow will reject it at 50,000.
@@ -51,6 +66,24 @@ One paste. Nothing in Page Settings, no second embed, no external script.
 actually pasteable, so an oversized file can never sit there waiting to be
 truncated. If the form ever outgrows the cap it splits into
 `embed-part1.html` + `embed-part2.html` and says so.
+
+### Two variants
+
+`build.js` emits both from the same source, and they are byte-identical apart
+from one attribute on the form's root element:
+
+| File | Asks annual revenue |
+|---|---|
+| `webflow/embed.html` | no |
+| `webflow/embed-revenue.html` | yes, on the prospect branch only |
+
+There is no second source file and no flag to remember. Everything in
+`src/webflow-embed.html` ships to both; the attribute decides whether the
+revenue question survives boot. A build where it does not survive removes the
+node from the DOM outright rather than hiding it, so a plain embed cannot leak
+an `annual_revenue` field to Default even by accident.
+
+To preview the variant off the readable source, add `?rev=1` to `preview.html`.
 
 ### Why there's a build step
 
@@ -208,6 +241,26 @@ One form, two branches. Step 1 decides which.
 All fields are required on both branches: first name, last name, email,
 mobile phone, restaurant name, and the branch question.
 
+### Annual revenue (revenue variant only)
+
+`webflow/embed-revenue.html` adds one required question between the branch
+question and the name fields, and **only on the prospect branch** — an existing
+customer asking for support is not being qualified.
+
+| `annual_revenue` | Shown as |
+|---|---|
+| `under_300k` | Under $300k |
+| `300k_1m` | $300k to $1 million |
+| `1m_plus` | $1 million+ |
+
+It is a `<select>` rather than a fourth set of radio cards: three more cards
+push the last step past a phone screen, and picking a range is a lookup, not a
+decision worth that much room. The label carries "Approximate, per location" so
+a multi-location operator has an answer instead of a reason to abandon.
+
+Switching to the customer branch after answering clears it, so a range can
+never ride along on a submission that never asked for one.
+
 ### Routing
 
 | Branch | Answer | `routing_owner` |
@@ -270,7 +323,8 @@ picked, otherwise what they typed).
 
 **Qualification** — `visitor_type` (`prospect` / `current_customer`), plus
 either `restaurant_status` or `help_topic` depending on the branch, and
-`routing_owner`.
+`routing_owner`. The revenue build adds `annual_revenue` on the prospect
+branch.
 
 A diner never submits.
 

@@ -219,6 +219,25 @@
   box-shadow:0 0 0 3px rgba(255,205,4,.42);
 }
 
+/* --- select --------------------------------------------------------------
+   A native <select>, not a card row. Three more cards would push the last
+   step past a phone screen, and a range is a lookup, not a decision worth
+   3x the vertical space. appearance:none strips the platform arrow so the
+   control matches every other input; the chevron below replaces it. The
+   wrapper owns the chevron because a <select> cannot have children that
+   render, and pointer-events:none on it keeps the whole box clickable. */
+#usv-demo .usv-sel{position:relative;display:block;}
+#usv-demo .usv-sel select{padding-right:40px;cursor:pointer;}
+/* Until something is picked the control reads as a placeholder, like every
+   other empty field on the step, rather than as an answered question. */
+#usv-demo .usv-sel select:invalid{color:#a8a29a;}
+#usv-demo .usv-sel option{color:var(--usv-ink);}
+#usv-demo .usv-sel-icon{
+  position:absolute;top:50%;right:14px;transform:translateY(-50%);
+  display:block;color:var(--usv-ink-3);pointer-events:none;
+}
+#usv-demo .usv-sel-icon svg{display:block;}
+
 #usv-demo .usv-newbtn{
   /* Matches .usv-label's 7px. On a phone this shortcut wraps onto its own
      line, and without the margin it sits flush on the input - close enough
@@ -239,6 +258,15 @@
 }
 #usv-demo .usv-newbtn:hover{background:var(--usv-yellow);}
 #usv-demo .usv-newbtn:focus-visible{outline:2px solid var(--usv-ink);outline-offset:2px;}
+/* The qualifier that keeps the ranges answerable — same yellow underline as
+   the shortcut above the name field, but this one is text, so no hover or
+   pointer. It rides in the label row and wraps below the label on a phone. */
+#usv-demo .usv-hint{
+  margin-bottom:7px;flex:0 1 auto;max-width:100%;
+  font-size:13px;font-weight:700;color:var(--usv-ink-2);
+  text-decoration:underline;text-decoration-color:var(--usv-yellow);
+  text-decoration-thickness:2px;text-underline-offset:3px;
+}
 #usv-demo .usv-help{
   font-size:13px;line-height:1.45;color:var(--usv-ink-3);
   margin:7px 0 0;
@@ -516,7 +544,9 @@
 </style>
 
 
-<div id="usv-demo">
+<!-- data-usv-rev is the variant switch. build.js emits one embed with "0" and
+     one with "1"; nothing else differs between the two files. -->
+<div id="usv-demo" data-usv-rev="0">
   <div class="usv-stage">
     <div class="usv-card">
 
@@ -651,6 +681,32 @@
               <legend class="usv-sr">What do you need help with</legend>
             </fieldset>
             <p class="usv-err" id="usv-help-err">Let us know what you need.</p>
+          </div>
+
+          <!-- Variant only. The plain embed deletes this node outright rather
+               than hiding it, so nothing named annual_revenue can reach Default
+               from a build that never meant to ask. See data-usv-rev below. -->
+          <div class="usv-field" id="usv-f-rev" hidden>
+            <div class="usv-labelrow">
+              <label class="usv-label" for="usv-rev">Annual revenue<span class="usv-req">*</span></label>
+              <span class="usv-hint" id="usv-rev-hint">Approximate, per location</span>
+            </div>
+            <div class="usv-sel">
+              <select class="usv-input" id="usv-rev" name="annual_revenue"
+                      aria-describedby="usv-rev-hint" required>
+                <option value="">Select a range</option>
+                <option value="under_300k">Under $300k</option>
+                <option value="300k_1m">$300k to $1 million</option>
+                <option value="1m_plus">$1 million+</option>
+              </select>
+              <span class="usv-sel-icon">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 6.5 8 10.5 12 6.5" stroke="currentColor" stroke-width="1.8"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            </div>
+            <p class="usv-err" id="usv-rev-err">Pick the range that fits.</p>
           </div>
 
           <div class="usv-row">
@@ -876,6 +932,17 @@
   var root = $('usv-demo');
   if (!root || root.dataset.usvBooted === '1') { return; }
   root.dataset.usvBooted = '1';
+
+  /* Which of the two builds this is. The revenue question is the only thing
+     that differs between them, and build.js sets the attribute — nobody has to
+     edit the pasted embed. Off means the node is gone, not hidden: a hidden
+     control is still in the DOM, and Default builds its payload from the DOM. */
+  var ASK_REVENUE = root.getAttribute('data-usv-rev') === '1'
+                    || /[?&]rev=1/.test(window.location.search);
+  if (!ASK_REVENUE) {
+    var deadRev = document.getElementById('usv-f-rev');
+    if (deadRev && deadRev.parentNode) deadRev.parentNode.removeChild(deadRev);
+  }
 
   function txt(el, s) { if (el) el.textContent = s; }
   function say(s) { txt($('usv-live'), s); }
@@ -1383,7 +1450,7 @@
                   'rating', 'userRatingCount', 'priceLevel', 'priceRange',
                   'businessStatus', 'location', 'regularOpeningHours',
                   'primaryTypeDisplayName', 'primaryType', 'types',
-                  'pureServiceAreaBusiness', 'googleMapsURI', 'utcOffsetMinutes'];
+                  'isPureServiceAreaBusiness', 'googleMapsURI', 'utcOffsetMinutes'];
 
 
     place.fetchFields({ fields: FIELDS }).then(function () {
@@ -1762,6 +1829,11 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       if (!root.querySelector('input[name="restaurant_status"]:checked')) {
         setErr($('usv-f-status')); ok = false;
       } else clearErr($('usv-f-status'));
+
+      if (ASK_REVENUE) {
+        if (!$('usv-rev').value) { setErr($('usv-f-rev')); ok = false; }
+        else clearErr($('usv-f-rev'));
+      }
     }
 
     if ($('usv-first').value.trim().length < 1) { setErr($('usv-f-first')); ok = false; }
@@ -1888,6 +1960,10 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     });
   }
 
+  if (ASK_REVENUE) {
+    on($('usv-rev'), 'change', function () { clearErr($('usv-f-rev')); });
+  }
+
   function isCustomer() { return S.visitor === 'current_customer'; }
 
   /* One details step, two questions. A prospect is asked about their timeline;
@@ -1897,6 +1973,12 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     var c = isCustomer();
     $('usv-f-status').hidden = c;
     $('usv-f-help').hidden = !c;
+    if (ASK_REVENUE) {
+      /* Prospects only. Someone who backs up and switches to the customer
+         branch must not leave a range behind for Default to read. */
+      $('usv-f-rev').hidden = c;
+      if (c) { $('usv-rev').value = ''; clearErr($('usv-f-rev')); }
+    }
     txt($('usv-h2'), c ? 'What do you need help with?' : 'Where are you today?');
     paintSubmit();
   }
@@ -2107,8 +2189,8 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     v.place_types        = place && place.types && place.types.length
                              ? place.types.join(', ') : '';
     /* No storefront: delivery-only or service-area business. */
-    v.place_service_area_only = place && typeof place.pureServiceAreaBusiness === 'boolean'
-                             ? String(place.pureServiceAreaBusiness) : '';
+    v.place_service_area_only = place && typeof place.isPureServiceAreaBusiness === 'boolean'
+                             ? String(place.isPureServiceAreaBusiness) : '';
     /* E.164, so it lands in the same shape as the lead's own number. */
     v.place_phone_e164   = place && place.internationalPhoneNumber
                              ? String(place.internationalPhoneNumber).replace(/[^+0-9]/g, '') : '';
@@ -2349,7 +2431,8 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     track('submit', {
       place_source  : S.match,
       place_verified: String(S.verified),
-      routing_owner : CFG.ROUTING[(root.querySelector('input[name="restaurant_status"]:checked') || {}).value] || ''
+      routing_owner : CFG.ROUTING[(root.querySelector('input[name="restaurant_status"]:checked') || {}).value] || '',
+      annual_revenue: ASK_REVENUE ? $('usv-rev').value : ''
     });
     setBusy(true);
     registerDefaultCallbacks();

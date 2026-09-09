@@ -104,7 +104,7 @@ const STUB = `<script>
             self.primaryTypeDisplayName = 'Seafood restaurant';
             self.primaryType = 'seafood_restaurant';
             self.types = ['seafood_restaurant', 'restaurant', 'food', 'establishment'];
-            self.pureServiceAreaBusiness = false;
+            self.isPureServiceAreaBusiness = false;
             self.internationalPhoneNumber = '+1 401-849-2900';
             self.priceRange = { startPrice:{units:20,currencyCode:'USD'},
                                 endPrice:{units:40,currencyCode:'USD'} };
@@ -162,18 +162,25 @@ const STUB = `<script>
 }());
 </script>`;
 
-/** The page under test: real embed + stubs. */
-function page() {
-  // The build emits ONE of two shapes: a single embed.html when it fits under
-  // Webflow's cap, or two parts when it doesn't. Test whichever exists — that
-  // is what actually gets pasted.
-  const embedPath = path.join(ROOT, 'webflow', 'embed.html');
-  const p1 = path.join(ROOT, 'webflow', 'embed-part1.html');
-  const p2 = path.join(ROOT, 'webflow', 'embed-part2.html');
+/**
+ * The page under test: real embed + stubs.
+ *
+ * `variant` names which built file to drive — 'embed' is the plain form,
+ * 'embed-revenue' the one that also asks for annual revenue. Both are real
+ * build output, so the revenue tests exercise the file that gets pasted rather
+ * than a flag flipped at runtime.
+ */
+function page(variant = 'embed') {
+  // The build emits ONE of two shapes per variant: a single file when it fits
+  // under Webflow's cap, or two parts when it doesn't. Test whichever exists —
+  // that is what actually gets pasted.
+  const embedPath = path.join(ROOT, 'webflow', variant + '.html');
+  const p1 = path.join(ROOT, 'webflow', variant + '-part1.html');
+  const p2 = path.join(ROOT, 'webflow', variant + '-part2.html');
   const split = fs.existsSync(p1) && fs.existsSync(p2);
 
   if (!split && !fs.existsSync(embedPath)) {
-    throw new Error('No build output in webflow/ — run `node build.js` first');
+    throw new Error('No ' + variant + ' output in webflow/ — run `node build.js` first');
   }
   // Neutralise whatever key the local build injected; tests never call Google.
   const raw = split

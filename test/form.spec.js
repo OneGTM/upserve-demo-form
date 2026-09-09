@@ -14,6 +14,8 @@ const { test, expect } = require('@playwright/test');
 const { page: buildPage, pageInWebflowColumn } = require('./harness');
 
 const HTML = buildPage();
+/* The second build: same form, plus the annual revenue question. */
+const HTML_REV = buildPage('embed-revenue');
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -26,8 +28,8 @@ async function clickContinue(page) {
 }
 
 /** Open the form and clear the triage step as a prospect. */
-async function open(page, visitor = 'prospect') {
-  await page.setContent(HTML, { waitUntil: 'load' });
+async function open(page, visitor = 'prospect', html = HTML) {
+  await page.setContent(html, { waitUntil: 'load' });
   await page.waitForFunction(() => !!document.querySelector('[role="combobox"]'));
   openedAt.set(page, Date.now());
   await page.waitForTimeout(150);
@@ -756,9 +758,10 @@ test('the shipped embed contains no em or en dash', () => {
   const fs = require('fs');
   const path = require('path');
   const dir = path.join(__dirname, '..', 'webflow');
-  const files = ['embed.html', 'embed-part1.html', 'embed-part2.html']
-    .map((f) => path.join(dir, f))
-    .filter((f) => fs.existsSync(f));
+  // every build output: both variants, whole or split
+  const files = fs.readdirSync(dir)
+    .filter((f) => /^embed(-revenue)?(-part[12])?\.html$/.test(f))
+    .map((f) => path.join(dir, f));
 
   expect(files.length).toBeGreaterThan(0);
 
@@ -1210,9 +1213,10 @@ test('no element in the shipped embed declares a fixed pixel width', () => {
   const fs = require('fs');
   const path = require('path');
   const dir = path.join(__dirname, '..', 'webflow');
-  const files = ['embed.html', 'embed-part1.html', 'embed-part2.html']
-    .map((f) => path.join(dir, f))
-    .filter((f) => fs.existsSync(f));
+  // every build output: both variants, whole or split
+  const files = fs.readdirSync(dir)
+    .filter((f) => /^embed(-revenue)?(-part[12])?\.html$/.test(f))
+    .map((f) => path.join(dir, f));
   expect(files.length).toBeGreaterThan(0);
 
   const offenders = [];
@@ -1229,4 +1233,118 @@ test('no element in the shipped embed declares a fixed pixel width', () => {
     }
   }
   expect(offenders).toEqual([]);
+});
+
+/* ── the revenue variant ─────────────────────────────────────────────────────
+ *
+ * Two builds ship from one source. What has to hold is that they are the same
+ * form apart from this one question, that the question only ever appears where
+ * it belongs, and that the plain build cannot leak an annual_revenue field.
+ */
+
+const REVENUE = 'select[name="annual_revenue"]';
+
+test('the plain build has no revenue question anywhere in it', async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+
+  await expect(page.locator(REVENUE)).toHaveCount(0);
+  await expect(page.getByText(/annual revenue/i)).toHaveCount(0);
+
+  await fillContact(page);
+  await submit(page);
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  expect((await submissions(page))[0].fields).not.toHaveProperty('annual_revenue');
+});
+
+test('the revenue build asks a prospect, between the timeline and their name',
+  async ({ page }) => {
+    await open(page, 'prospect', HTML_REV);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+
+    await expect(page.locator(REVENUE)).toBeVisible();
+
+    // Order is the point: after the cards, before the name row.
+    const order = await page.evaluate(() => {
+      const sel = document.querySelector('select[name="annual_revenue"]');
+      const status = document.querySelector('input[name="restaurant_status"]');
+      const first = document.querySelector('input[name="first_name"]');
+      const pos = (a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
+      return { afterStatus: !!pos(status, sel), beforeName: !!pos(sel, first) };
+    });
+    expect(order).toEqual({ afterStatus: true, beforeName: true });
+  });
+
+test('a customer is never asked their revenue', async ({ page }) => {
+  await open(page, 'current_customer', HTML_REV);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+
+  await expect(page.locator(REVENUE)).toBeHidden();
+
+  await page.locator('input[value="add_location"]').check({ force: true });
+  await fillContact(page);
+  await submit(page);
+
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  expect((await submissions(page))[0].fields.annual_revenue).toBe('');
+});
+
+test('the revenue build will not submit a prospect without a range', async ({ page }) => {
+  await open(page, 'prospect', HTML_REV);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await page.locator('input[value="replacing_pos"]').check({ force: true });
+  await fillContact(page);
+  await submit(page);
+
+  await expect(page.getByText(/pick the range that fits/i)).toBeVisible();
+  expect(await submissions(page)).toHaveLength(0);
+
+  await page.selectOption(REVENUE, '1m_plus');
+  await expect(page.getByText(/pick the range that fits/i)).toBeHidden();
+  await submit(page);
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+});
+
+test('the range reaches Default with its options and a readable label',
+  async ({ page }) => {
+    await open(page, 'prospect', HTML_REV);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await page.locator('input[value="replacing_pos"]').check({ force: true });
+    await page.selectOption(REVENUE, '300k_1m');
+    await fillContact(page);
+    await submit(page);
+
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    const { fields, labels, optionsByName } = (await submissions(page))[0];
+
+    expect(fields.annual_revenue).toBe('300k_1m');
+    expect(labels.annual_revenue).toMatch(/annual revenue/i);
+    expect(labels.annual_revenue).not.toMatch(/annual_revenue/);
+    // Default branches on the option set, so all three have to arrive.
+    expect(optionsByName.annual_revenue)
+      .toEqual(['', 'under_300k', '300k_1m', '1m_plus']);
+  });
+
+// Someone who answers as a prospect, backs up, and comes back as a customer
+// must not leave a range behind for Default to read.
+test('switching to the customer branch drops an answered range', async ({ page }) => {
+  await open(page, 'prospect', HTML_REV);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await page.selectOption(REVENUE, 'under_300k');
+
+  await page.getByRole('button', { name: /back/i }).first().click();
+  await page.getByRole('button', { name: /back/i }).first().click();
+  await page.locator('input[value="current_customer"]').check({ force: true });
+  await clickContinue(page);
+  await clickContinue(page);
+  await expect(page.locator('input[name="first_name"]')).toBeVisible();
+
+  await expect(page.locator(REVENUE)).toBeHidden();
+  expect(await page.locator(REVENUE).inputValue()).toBe('');
 });
