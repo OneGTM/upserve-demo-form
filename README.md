@@ -18,7 +18,6 @@ somewhere useful, and neither one creates anything in Default.
 |---|---|
 | `src/webflow-embed.html` | **Source of truth.** Markup + CSS + logic, commented. Edit this. |
 | `webflow/embed.html` | Generated but **committed**, live key included. **One paste, one Embed element.** |
-| `webflow/embed-revenue.html` | The same form plus the annual revenue question. Same deal: one paste. |
 | `webflow/embed.names.json` | Generated. Minified class name → source name, for devtools. |
 | `preview.html` | Generated. Open locally to test the readable source. |
 | `prototype.html` | Generated. Shareable demo with Default and Google stubbed. |
@@ -33,13 +32,12 @@ it straight out of the repo — no clone, no build, no `config.local.json`. On a
 machine that has the repo:
 
 ```bash
-npm run copy            # webflow/embed.html on your clipboard
-npm run copy:revenue    # webflow/embed-revenue.html instead
+npm run copy      # builds, then puts webflow/embed.html on your clipboard
 ```
 
 1. Open the demo page in the Designer.
 2. Drag an **Embed** element where the form should sit.
-3. Paste (the clipboard already holds the variant you copied).
+3. Paste (the clipboard already holds `webflow/embed.html`).
 4. Save and publish.
 
 One paste. Nothing in Page Settings, no second embed, no external script.
@@ -66,24 +64,6 @@ the embed, since that belongs to the page, not the form.
 actually pasteable, so an oversized file can never sit there waiting to be
 truncated. If the form ever outgrows the cap it splits into
 `embed-part1.html` + `embed-part2.html` and says so.
-
-### Two variants
-
-`build.js` emits both from the same source, and they are byte-identical apart
-from one attribute on the form's root element:
-
-| File | Asks annual revenue |
-|---|---|
-| `webflow/embed.html` | no |
-| `webflow/embed-revenue.html` | yes, on the prospect branch only |
-
-There is no second source file and no flag to remember. Everything in
-`src/webflow-embed.html` ships to both; the attribute decides whether the
-revenue question survives boot. A build where it does not survive removes the
-node from the DOM outright rather than hiding it, so a plain embed cannot leak
-an `annual_revenue` field to Default even by accident.
-
-To preview the variant off the readable source, add `?rev=1` to `preview.html`.
 
 ### Why there's a build step
 
@@ -241,11 +221,11 @@ One form, two branches. Step 1 decides which.
 All fields are required on both branches: first name, last name, email,
 mobile phone, restaurant name, and the branch question.
 
-### Annual revenue (revenue variant only)
+### Annual revenue — on for the pages that want it
 
-`webflow/embed-revenue.html` adds one required question between the branch
-question and the name fields, and **only on the prospect branch** — an existing
-customer asking for support is not being qualified.
+One required question between the branch question and the name fields. It is
+**off everywhere by default**, and shown **only on the prospect branch** — an
+existing customer asking for support is not being qualified.
 
 | `annual_revenue` | Shown as |
 |---|---|
@@ -260,6 +240,49 @@ a multi-location operator has an answer instead of a reason to abandon.
 
 Switching to the customer branch after answering clears it, so a range can
 never ride along on a submission that never asked for one.
+
+#### Turning it on for a page
+
+The same `embed.html` goes on every page. The **page** decides whether it also
+asks, so changing your mind about a landing page is a change in the Designer,
+not a rebuild and a re-paste everywhere the form lives.
+
+**The one to reach for — a custom attribute, no code:**
+
+1. Select the section or div wrapping the Embed element. (Body works too, if
+   you want the whole page.)
+2. Settings panel → **Custom attributes** → add:
+
+   | Name | Value |
+   |---|---|
+   | `data-upserve-revenue` | `1` |
+
+3. Publish.
+
+The nearest ancestor carrying the attribute wins, and its **value** decides —
+so `data-upserve-revenue="0"` on a section is a deliberate no even when Body
+above it says yes.
+
+**The other three:**
+
+| How | Where | Good for |
+|---|---|---|
+| `window.USV_ASK_REVENUE = true` in a script tag | Page settings → **Inside `<head>`** | A page you already have custom code on |
+| `?rev=1` on the URL | — | Previewing. Not a live page — a visitor without it gets the other form |
+| A path in `CFG.REVENUE_PATHS` | `src/webflow-embed.html`, then rebuild | A fixed set of pages you'd rather manage in the repo |
+
+`Inside <head>`, not "Before `</body>`": the form boots when its own script
+runs, which is before anything at the end of the body.
+
+A page that says no has the field **removed from the DOM** at boot rather than
+hidden. Default builds its payload by reading the DOM, and a hidden control is
+still a control — so hiding it would quietly send an empty `annual_revenue` on
+every page that never asked.
+
+`data-upserve-revenue`, `USV_ASK_REVENUE` and `REVENUE_PATHS` are the three
+names typed outside this repo, so none of them carry the `usv-` prefix the
+build minifies — they mean the same thing in the source and in the shipped
+embed, and a test asserts each one still works against the built file.
 
 ### Routing
 
@@ -323,8 +346,8 @@ picked, otherwise what they typed).
 
 **Qualification** — `visitor_type` (`prospect` / `current_customer`), plus
 either `restaurant_status` or `help_topic` depending on the branch, and
-`routing_owner`. The revenue build adds `annual_revenue` on the prospect
-branch.
+`routing_owner`, plus `annual_revenue` on the prospect branch of a page that
+asks for it.
 
 A diner never submits.
 

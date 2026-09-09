@@ -14,8 +14,9 @@ const { test, expect } = require('@playwright/test');
 const { page: buildPage, pageInWebflowColumn } = require('./harness');
 
 const HTML = buildPage();
-/* The second build: same form, plus the annual revenue question. */
-const HTML_REV = buildPage('embed-revenue');
+/* The same embed on a page that asks for annual revenue, the way a real one
+   would: a wrapper around the Embed element carrying the attribute. */
+const HTML_REV = buildPage({ revenue: 'attribute' });
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -758,10 +759,9 @@ test('the shipped embed contains no em or en dash', () => {
   const fs = require('fs');
   const path = require('path');
   const dir = path.join(__dirname, '..', 'webflow');
-  // every build output: both variants, whole or split
-  const files = fs.readdirSync(dir)
-    .filter((f) => /^embed(-revenue)?(-part[12])?\.html$/.test(f))
-    .map((f) => path.join(dir, f));
+  const files = ['embed.html', 'embed-part1.html', 'embed-part2.html']
+    .map((f) => path.join(dir, f))
+    .filter((f) => fs.existsSync(f));
 
   expect(files.length).toBeGreaterThan(0);
 
@@ -1213,10 +1213,9 @@ test('no element in the shipped embed declares a fixed pixel width', () => {
   const fs = require('fs');
   const path = require('path');
   const dir = path.join(__dirname, '..', 'webflow');
-  // every build output: both variants, whole or split
-  const files = fs.readdirSync(dir)
-    .filter((f) => /^embed(-revenue)?(-part[12])?\.html$/.test(f))
-    .map((f) => path.join(dir, f));
+  const files = ['embed.html', 'embed-part1.html', 'embed-part2.html']
+    .map((f) => path.join(dir, f))
+    .filter((f) => fs.existsSync(f));
   expect(files.length).toBeGreaterThan(0);
 
   const offenders = [];
@@ -1235,30 +1234,74 @@ test('no element in the shipped embed declares a fixed pixel width', () => {
   expect(offenders).toEqual([]);
 });
 
-/* ── the revenue variant ─────────────────────────────────────────────────────
+/* ── the revenue question ────────────────────────────────────────────────────
  *
- * Two builds ship from one source. What has to hold is that they are the same
- * form apart from this one question, that the question only ever appears where
- * it belongs, and that the plain build cannot leak an annual_revenue field.
+ * One embed goes on every page; the page decides whether it also asks for
+ * revenue. What has to hold is that a page which does not ask cannot leak the
+ * field, that the ones which do get it in the right place, and that all four
+ * ways of saying yes actually work — those are the strings a marketer types
+ * into the Designer, and a build that renamed one of them would fail silently.
  */
 
 const REVENUE = 'select[name="annual_revenue"]';
 
-test('the plain build has no revenue question anywhere in it', async ({ page }) => {
-  await open(page);
-  await pickRestaurant(page, 'Tautog');
-  await continueToStep2(page);
+test('a page that does not ask has no revenue question in it at all',
+  async ({ page }) => {
+    await open(page);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
 
-  await expect(page.locator(REVENUE)).toHaveCount(0);
-  await expect(page.getByText(/annual revenue/i)).toHaveCount(0);
+    await expect(page.locator(REVENUE)).toHaveCount(0);
+    await expect(page.getByText(/annual revenue/i)).toHaveCount(0);
 
-  await fillContact(page);
-  await submit(page);
-  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
-  expect((await submissions(page))[0].fields).not.toHaveProperty('annual_revenue');
-});
+    await fillContact(page);
+    await submit(page);
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    expect((await submissions(page))[0].fields).not.toHaveProperty('annual_revenue');
+  });
 
-test('the revenue build asks a prospect, between the timeline and their name',
+/* Each of these is a switch someone flips in Webflow, so each is tested
+   against the built file rather than trusted. */
+const SWITCHES = [
+  ['a wrapper attribute',      { revenue: 'attribute' }],
+  ['the attribute set to true', { revenue: 'true' }],
+  ['a window global set in the head', { revenue: 'global' }],
+  ['a path in REVENUE_PATHS',  { paths: ['/book-a-demo'] }]
+];
+
+for (const [how, opts] of SWITCHES) {
+  test(`${how} turns the revenue question on`, async ({ page }) => {
+    const html = buildPage(opts);
+    if (opts.paths) {
+      // the path route is the only one that needs a real URL
+      await page.route('**/*', (r) =>
+        r.fulfill({ contentType: 'text/html', body: html }));
+      await page.goto('http://upserve.test' + opts.paths[0]);
+      await page.waitForFunction(() => !!document.querySelector('[role="combobox"]'));
+      openedAt.set(page, Date.now());
+      await page.waitForTimeout(150);
+      await page.locator('input[value="prospect"]').check({ force: true });
+      await clickContinue(page);
+    } else {
+      await open(page, 'prospect', html);
+    }
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await expect(page.locator(REVENUE)).toBeVisible();
+  });
+}
+
+// A section saying no wins over anything above it saying yes.
+for (const off of ['0', 'false']) {
+  test(`the attribute set to "${off}" is a deliberate no`, async ({ page }) => {
+    await open(page, 'prospect', buildPage({ revenue: off }));
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await expect(page.locator(REVENUE)).toHaveCount(0);
+  });
+}
+
+test('a page that does ask puts it between the timeline and their name',
   async ({ page }) => {
     await open(page, 'prospect', HTML_REV);
     await pickRestaurant(page, 'Tautog');
@@ -1292,7 +1335,7 @@ test('a customer is never asked their revenue', async ({ page }) => {
   expect((await submissions(page))[0].fields.annual_revenue).toBe('');
 });
 
-test('the revenue build will not submit a prospect without a range', async ({ page }) => {
+test('a prospect cannot submit without a range', async ({ page }) => {
   await open(page, 'prospect', HTML_REV);
   await pickRestaurant(page, 'Tautog');
   await continueToStep2(page);

@@ -238,7 +238,10 @@
 }
 #usv-demo .usv-sel-icon svg{display:block;}
 
-#usv-demo .usv-newbtn{
+/* The two things that ride in a label row: the New Restaurant shortcut, and
+   the qualifier that keeps the revenue ranges answerable. Same yellow
+   underline, same wrapping behaviour; only one of them is clickable. */
+#usv-demo .usv-newbtn,#usv-demo .usv-hint{
   /* Matches .usv-label's 7px. On a phone this shortcut wraps onto its own
      line, and without the margin it sits flush on the input - close enough
      that the yellow underline is lost against the focus ring and the whole
@@ -251,22 +254,15 @@
      good deal less than the viewport. Allowed to shrink, it wraps instead. */
   flex:0 1 auto;max-width:100%;text-align:left;
   font-family:var(--usv-sans);font-size:13px;font-weight:700;
-  color:var(--usv-ink);background:none;border:0;padding:0;cursor:pointer;
+  color:var(--usv-ink);background:none;border:0;padding:0;
   text-decoration:underline;text-decoration-color:var(--usv-yellow);
   text-decoration-thickness:2px;text-underline-offset:3px;
-  transition:background-color .15s ease;
 }
+/* The hint is text. It gets the look and the wrapping, never the affordance. */
+#usv-demo .usv-hint{color:var(--usv-ink-2);}
+#usv-demo .usv-newbtn{cursor:pointer;transition:background-color .15s ease;}
 #usv-demo .usv-newbtn:hover{background:var(--usv-yellow);}
 #usv-demo .usv-newbtn:focus-visible{outline:2px solid var(--usv-ink);outline-offset:2px;}
-/* The qualifier that keeps the ranges answerable — same yellow underline as
-   the shortcut above the name field, but this one is text, so no hover or
-   pointer. It rides in the label row and wraps below the label on a phone. */
-#usv-demo .usv-hint{
-  margin-bottom:7px;flex:0 1 auto;max-width:100%;
-  font-size:13px;font-weight:700;color:var(--usv-ink-2);
-  text-decoration:underline;text-decoration-color:var(--usv-yellow);
-  text-decoration-thickness:2px;text-underline-offset:3px;
-}
 #usv-demo .usv-help{
   font-size:13px;line-height:1.45;color:var(--usv-ink-3);
   margin:7px 0 0;
@@ -544,9 +540,7 @@
 </style>
 
 
-<!-- data-usv-rev is the variant switch. build.js emits one embed with "0" and
-     one with "1"; nothing else differs between the two files. -->
-<div id="usv-demo" data-usv-rev="0">
+<div id="usv-demo">
   <div class="usv-stage">
     <div class="usv-card">
 
@@ -683,9 +677,10 @@
             <p class="usv-err" id="usv-help-err">Let us know what you need.</p>
           </div>
 
-          <!-- Variant only. The plain embed deletes this node outright rather
-               than hiding it, so nothing named annual_revenue can reach Default
-               from a build that never meant to ask. See data-usv-rev below. -->
+          <!-- Off unless the page asks for it. A page that does not deletes
+               this node outright rather than hiding it: Default builds its
+               payload by reading the DOM, and a hidden control is still a
+               control. See askRevenue(). -->
           <div class="usv-field" id="usv-f-rev" hidden>
             <div class="usv-labelrow">
               <label class="usv-label" for="usv-rev">Annual revenue<span class="usv-req">*</span></label>
@@ -896,6 +891,34 @@
                                                    'Invoices and payment method']
     ],
 
+    /* -- Annual revenue ----------------------------------------------------
+       The revenue question is OFF everywhere by default. Four ways to turn it
+       on for a page, in the order askRevenue() checks them:
+
+       1. A one-line script tag in Page settings > Inside head, above the form,
+          setting:  window.USV_ASK_REVENUE = true;
+          Head, not "Before body ends" — the form boots when its own script
+          runs, which is before anything at the end of the body.
+
+       2. ?rev=1 on the URL. For previewing, not for a live page: a visitor who
+          arrives without it gets the other form.
+
+       3. A custom attribute in the Designer, on the section or div wrapping the
+          Embed element (or on Body, for the whole page):
+            data-upserve-revenue = 1
+          No code and no rebuild — this is the one to reach for.
+
+       4. This list, for pages you would rather manage in one place here.
+          Paths only, no domain, no trailing slash. Changing it means a
+          rebuild and a re-paste of every page carrying the form, which is the
+          reason it is last.
+
+       Whichever route, a page that says no has the field removed from the DOM
+       at boot rather than hidden, so it cannot reach Default. */
+    REVENUE_PATHS : [
+      // '/request-a-demo-revenue',
+    ],
+
     /* -- Behaviour ---------------------------------------------------------- */
     REGIONS            : ['us', 'ca'],   // Places country filter
     MIN_SUBMIT_SECONDS : 3,              // submit-speed floor
@@ -933,12 +956,35 @@
   if (!root || root.dataset.usvBooted === '1') { return; }
   root.dataset.usvBooted = '1';
 
-  /* Which of the two builds this is. The revenue question is the only thing
-     that differs between them, and build.js sets the attribute — nobody has to
-     edit the pasted embed. Off means the node is gone, not hidden: a hidden
-     control is still in the DOM, and Default builds its payload from the DOM. */
-  var ASK_REVENUE = root.getAttribute('data-usv-rev') === '1'
-                    || /[?&]rev=1/.test(window.location.search);
+  /* Does THIS page ask for annual revenue?
+
+     One embed, pasted everywhere. The page decides, so turning the question on
+     for a landing page is a change in the Designer rather than a rebuild and a
+     re-paste of every page that has the form on it.
+
+     Four ways to say yes, cheapest first — see REVENUE_PATHS in the config for
+     what each one is for. Nothing here is minified: the attribute and the
+     global are the two names a marketer types, so they have to survive a build
+     that renames everything carrying the usv- prefix.
+
+     Off means the field is REMOVED, not hidden. Default builds its payload by
+     reading the DOM, and a hidden control is still a control. */
+  function askRevenue() {
+    if (window.USV_ASK_REVENUE === true) return true;
+    if (/[?&]rev=1/.test(window.location.search)) return true;
+
+    /* The nearest ancestor carrying the attribute — the section wrapping the
+       Embed element, or Body. Its VALUE decides, so data-upserve-revenue="0"
+       on a section is a deliberate no even when Body above it says yes. */
+    var host = root.closest('[data-upserve-revenue]');
+    if (host) return !/^(0|false)?$/.test(host.getAttribute('data-upserve-revenue'));
+
+    /* Trailing slash trimmed here, so the list can be written either way. */
+    return CFG.REVENUE_PATHS.indexOf(
+      window.location.pathname.replace(/\/+$/, '') || '/') > -1;
+  }
+
+  var ASK_REVENUE = askRevenue();
   if (!ASK_REVENUE) {
     var deadRev = document.getElementById('usv-f-rev');
     if (deadRev && deadRev.parentNode) deadRev.parentNode.removeChild(deadRev);

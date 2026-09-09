@@ -318,70 +318,57 @@ const embed =
 
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
-/* Two variants, one source. The only difference is the variant switch on the
-   root element, so build the plain embed and flip that one attribute for the
-   revenue build — no second pass over the source, and no way for the two to
-   drift apart. The attribute name is shortened along with everything else, so
-   look it up in the map rather than hardcoding it. */
-const REV_ATTR = 'data-' + shortened.map['usv-rev'];
-if (embed.indexOf(REV_ATTR + '="0"') === -1) {
-  console.error('The variant switch (' + REV_ATTR + '="0") is not in the output. ' +
-                'Did the root element in src/webflow-embed.html lose data-usv-rev?');
-  process.exit(1);
-}
+/* One embed, pasted on every page that carries the form. Whether a given page
+   also asks for annual revenue is decided at runtime by the page itself — see
+   REVENUE_PATHS in the source — so there is no second artifact to keep track
+   of and no page that needs re-pasting when the answer changes.
 
-const VARIANTS = [
-  { base: 'embed',         embed: embed, label: 'plain' },
-  { base: 'embed-revenue', label: 'with annual revenue',
-    embed: embed.replace(REV_ATTR + '="0"', REV_ATTR + '="1"') }
-];
-
-/* Webflow caps ONE Code Embed at 50,000 characters. When the form outgrows
+   Webflow caps ONE Code Embed at 50,000 characters. When the form outgrows
    that, the sanctioned workaround is a second embed — so emit the split
    automatically rather than making someone discover the cap by having Webflow
    truncate their paste. Splitting at the style/script boundary is safe: the
    markup and CSS land first, the script runs after and finds the DOM waiting.
 
-   <base>.html stays the canonical artifact either way — it is what the tests
+   embed.html stays the canonical artifact either way — it is what the tests
    drive, and what any host without a 50k cap can use as-is. */
-function writeVariant(v) {
-  const whole = path.join(OUT_DIR, v.base + '.html');
-  const p1 = path.join(OUT_DIR, v.base + '-part1.html');
-  const p2 = path.join(OUT_DIR, v.base + '-part2.html');
-  const usesSplit = v.embed.length > EMBED_LIMIT;
+const whole = path.join(OUT_DIR, 'embed.html');
+const p1 = path.join(OUT_DIR, 'embed-part1.html');
+const p2 = path.join(OUT_DIR, 'embed-part2.html');
+const usesSplit = embed.length > EMBED_LIMIT;
 
-  if (!usesSplit) fs.writeFileSync(whole, v.embed);
+if (!usesSplit) fs.writeFileSync(whole, embed);
 
-  if (usesSplit) {
-    const styleEnd = v.embed.indexOf('</style>') + '</style>'.length;
-    const head =
-      '<!-- Upserve demo form (' + v.label + ') — PART 1 of 2: styles + markup.\n' +
-      '     Paste into a Webflow Embed element. Part 2 goes in a SECOND embed\n' +
-      '     directly below this one. Order matters. -->\n' +
-      v.embed.slice(0, styleEnd) + '\n' +
-      v.embed.slice(styleEnd, v.embed.indexOf('<script>')).trim() + '\n';
-    const tail =
-      '<!-- Upserve demo form (' + v.label + ') — PART 2 of 2: logic.\n' +
-      '     Paste into a Webflow Embed element placed AFTER part 1. -->\n' +
-      v.embed.slice(v.embed.indexOf('<script>'));
+if (usesSplit) {
+  const styleEnd = embed.indexOf('</style>') + '</style>'.length;
+  const head =
+    '<!-- Upserve demo form — PART 1 of 2: styles + markup.\n' +
+    '     Paste into a Webflow Embed element. Part 2 goes in a SECOND embed\n' +
+    '     directly below this one. Order matters. -->\n' +
+    embed.slice(0, styleEnd) + '\n' +
+    embed.slice(styleEnd, embed.indexOf('<script>')).trim() + '\n';
+  const tail =
+    '<!-- Upserve demo form — PART 2 of 2: logic.\n' +
+    '     Paste into a Webflow Embed element placed AFTER part 1. -->\n' +
+    embed.slice(embed.indexOf('<script>'));
 
-    fs.writeFileSync(p1, head);
-    fs.writeFileSync(p2, tail);
+  fs.writeFileSync(p1, head);
+  fs.writeFileSync(p2, tail);
+  global.__usvSplit = [head.length, tail.length];
 
-    /* The whole file is over the cap and must not be pasted, so it does not
-       get to sit in webflow/ looking like the thing to paste. The parts are
-       the artifact; concatenating them reproduces it exactly if ever needed. */
-    if (fs.existsSync(whole)) fs.unlinkSync(whole);
-    return [head.length, tail.length];
-  }
-
+  /* embed.html is over the cap and must not be pasted, so it does not get to
+     sit in webflow/ looking like the thing to paste. The parts are the
+     artifact; concatenating them reproduces it exactly if ever needed. */
+  if (fs.existsSync(whole)) fs.unlinkSync(whole);
+} else {
   for (const stale of [p1, p2]) if (fs.existsSync(stale)) fs.unlinkSync(stale);
-  return null;
 }
 
-for (const v of VARIANTS) v.split = writeVariant(v);
-const usesSplit = VARIANTS.some((v) => v.split);
-global.__usvSplit = VARIANTS[0].split;
+/* the two-file revenue variant this replaced */
+for (const stale of ['embed-revenue.html', 'embed-revenue-part1.html',
+                     'embed-revenue-part2.html']) {
+  const q = path.join(OUT_DIR, stale);
+  if (fs.existsSync(q)) fs.unlinkSync(q);
+}
 
 /* Names are shortened in the output. Keep the mapping so a minified class seen
    in devtools can be traced back to its source name. */
@@ -680,26 +667,20 @@ function buildPrototypeStub() {
 console.log('\nBuilt from src/webflow-embed.html (' + source.length + ' readable chars)\n');
 
 let ok = true;
-console.log('  PASTE INTO WEBFLOW — pick the variant the page needs:\n');
-
-for (const v of VARIANTS) {
-  console.log('  ' + v.label + ':');
-  if (v.split) {
-    /* Over the cap: two embeds, part 1 first. */
-    const names = ['webflow/' + v.base + '-part1.html', 'webflow/' + v.base + '-part2.html'];
-    v.split.forEach((n, i) => {
-      ok = ok && n <= EMBED_LIMIT;
-      console.log('    ' + (n <= EMBED_LIMIT ? 'ok  ' : 'OVER') + '  ' + names[i].padEnd(32) +
-                  String(n).padStart(6) + ' / ' + EMBED_LIMIT);
-    });
-  } else {
-    const spare = EMBED_LIMIT - v.embed.length;
-    console.log('    ok    ' + ('webflow/' + v.base + '.html').padEnd(32) +
-                String(v.embed.length).padStart(6) + ' / ' + EMBED_LIMIT +
-                '  (' + spare + ' spare)');
-  }
+if (global.__usvSplit) {
+  const [a, b] = global.__usvSplit;
+  ok = a <= EMBED_LIMIT && b <= EMBED_LIMIT;
+  console.log('  PASTE THESE TWO into Webflow, part 1 first:\n');
+  console.log('  ' + (a <= EMBED_LIMIT ? 'ok  ' : 'OVER') + '  webflow/embed-part1.html'.padEnd(30) +
+              String(a).padStart(6) + ' / ' + EMBED_LIMIT);
+  console.log('  ' + (b <= EMBED_LIMIT ? 'ok  ' : 'OVER') + '  webflow/embed-part2.html'.padEnd(30) +
+              String(b).padStart(6) + ' / ' + EMBED_LIMIT);
+} else {
+  const spare = EMBED_LIMIT - embed.length;
+  console.log('  PASTE THIS into Webflow:\n');
+  console.log('  ok    webflow/embed.html'.padEnd(32) + String(embed.length).padStart(6) +
+              ' / ' + EMBED_LIMIT + '  (' + spare + ' spare)');
 }
-console.log('');
 console.log('  ok    preview.html'.padEnd(32) + String(preview.length).padStart(6) + ' chars');
 console.log('  ok    prototype.html\n');
 process.exit(ok ? 0 : 1);
