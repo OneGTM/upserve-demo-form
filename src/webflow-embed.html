@@ -903,10 +903,14 @@
        2. ?rev=1 on the URL. For previewing, not for a live page: a visitor who
           arrives without it gets the other form.
 
-       3. A custom attribute in the Designer, on the section or div wrapping the
-          Embed element (or on Body, for the whole page):
+       3. A custom attribute in the Designer, on the section or div WRAPPING the
+          Embed element:
             data-upserve-revenue = 1
-          No code and no rebuild — this is the one to reach for.
+          No code and no rebuild — this is the one to reach for. It has to be a
+          wrapper: Webflow exposes custom attributes on ordinary elements, not
+          on Body and not on the Embed element itself. closest() walks the whole
+          way up, so any ancestor will do. On a Collection page the value can be
+          bound to a CMS field instead of typed.
 
        4. This list, for pages you would rather manage in one place here.
           Paths only, no domain, no trailing slash. Changing it means a
@@ -914,7 +918,11 @@
           reason it is last.
 
        Whichever route, a page that says no has the field removed from the DOM
-       at boot rather than hidden, so it cannot reach Default. */
+       at boot rather than hidden, so it cannot reach Default.
+
+       None of this shows up in the Designer canvas — page settings code is not
+       injected there and an Embed's scripts do not run there. Check it on the
+       staging URL. */
     REVENUE_PATHS : [
       // '/request-a-demo-revenue',
     ],

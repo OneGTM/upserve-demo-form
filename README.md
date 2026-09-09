@@ -249,19 +249,26 @@ not a rebuild and a re-paste everywhere the form lives.
 
 **The one to reach for — a custom attribute, no code:**
 
-1. Select the section or div wrapping the Embed element. (Body works too, if
-   you want the whole page.)
-2. Settings panel → **Custom attributes** → add:
+1. Select the **section or div wrapping** the Embed element. Not Body: Webflow
+   does not expose custom attributes on it. Not the Embed element itself
+   either, which is why the wrapper is named — the form walks up the tree with
+   `closest()`, so anywhere above it works.
+2. Element settings panel → **Custom attributes** → add:
 
    | Name | Value |
    |---|---|
    | `data-upserve-revenue` | `1` |
 
-3. Publish.
+3. **Publish** (staging is enough).
 
 The nearest ancestor carrying the attribute wins, and its **value** decides —
-so `data-upserve-revenue="0"` on a section is a deliberate no even when Body
-above it says yes.
+so `data-upserve-revenue="0"` on the section inside a wrapper that says yes is
+a deliberate no.
+
+On a Collection page you can bind that value to a CMS field instead of typing
+it, which is how you'd let the question follow a switch on each landing page
+rather than a Designer edit. Custom attributes only accept CMS bindings on
+Collection pages and inside Collection lists.
 
 **The other three:**
 
@@ -273,6 +280,16 @@ above it says yes.
 
 `Inside <head>`, not "Before `</body>`": the form boots when its own script
 runs, which is before anything at the end of the body.
+
+> **Test on staging, not the canvas.** Neither route shows up in the Designer:
+> Page settings code is not injected into the canvas preview, and an Embed's
+> scripts do not execute there either. Publish to `yoursite.webflow.io` and
+> check there. This is not specific to this form — it is true of all Webflow
+> custom code.
+
+If the slugs churn more than the pages do, note that Webflow stamps a stable
+per-page id on `<html data-wf-page="…">`. Swapping `REVENUE_PATHS` for a list
+of those ids survives a rename, at the cost of a list nobody can read.
 
 A page that says no has the field **removed from the DOM** at boot rather than
 hidden. Default builds its payload by reading the DOM, and a hidden control is
