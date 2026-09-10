@@ -928,8 +928,13 @@ test('no step ever scrolls the page sideways', async ({ page }) => {
   await noOverflow('details with the typo hint open');
 });
 
-test('no visible field is small enough to make iOS zoom on focus', async ({ page }) => {
-  await open(page);
+// Both pages: the revenue select only exists on one of them, and a select is
+// exactly the control a 16px floor is easiest to forget on.
+for (const [what, html] of [['a plain page', undefined],
+                            ['a page asking for revenue', 'REV']]) {
+test('no visible field is small enough to make iOS zoom on focus, on ' + what,
+  async ({ page }) => {
+  await open(page, 'prospect', html === 'REV' ? HTML_REV : HTML);
   await pickRestaurant(page, 'Tautog');
   await continueToStep2(page);
   const tooSmall = await page.evaluate(() =>
@@ -944,6 +949,7 @@ test('no visible field is small enough to make iOS zoom on focus', async ({ page
       .filter((x) => x.size < 16));
   expect(tooSmall).toEqual([]);
 });
+}
 
 test('the text-sized controls have a hit area far bigger than their text',
   async ({ page }) => {
@@ -1391,3 +1397,99 @@ test('switching to the customer branch drops an answered range', async ({ page }
   await expect(page.locator(REVENUE)).toBeHidden();
   expect(await page.locator(REVENUE).inputValue()).toBe('');
 });
+
+/* The spill sweep above stops at the finder, because that is where the widest
+   things used to be. The details step is now the longest one on the page and
+   the only one carrying a <select>, so it gets its own pass — in the same
+   Webflow flex column, on the narrowest phones anyone still ships. */
+for (const width of [320, 360, 390]) {
+  test('nothing on the details step spills out of the card at ' + width + 'px',
+    async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.setContent(pageInWebflowColumn({ revenue: 'attribute' }),
+                            { waitUntil: 'load' });
+      await page.waitForFunction(() => !!document.querySelector('input[value="prospect"]'));
+      await page.waitForTimeout(150);
+      await page.locator('input[value="prospect"]').check({ force: true });
+      await page.locator('button:visible').filter({ hasText: /continue/i }).first().click();
+
+      const input = page.locator('[role="combobox"]');
+      await input.click();
+      await input.fill('Tautog');
+      await page.locator('[role="option"]').first().waitFor();
+      await page.locator('[role="option"]').first().click();
+      await page.waitForTimeout(150);
+      await page.locator('button:visible').filter({ hasText: /continue/i }).first().click();
+      await page.waitForTimeout(250);
+
+      await expect(page.locator('select[name="annual_revenue"]')).toBeVisible();
+
+      const spills = await page.evaluate(() => {
+        let card = document.querySelector('[name="first_name"]');
+        while (card && card !== document.body) {
+          const c = getComputedStyle(card);
+          if (c.backgroundColor === 'rgb(255, 255, 255)'
+              && parseFloat(c.paddingLeft) >= 16) break;
+          card = card.parentElement;
+        }
+        const cs = getComputedStyle(card);
+        const box = card.getBoundingClientRect();
+        const left = box.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+        const right = box.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight);
+        const out = [];
+        for (const el of card.querySelectorAll('*')) {
+          const st = getComputedStyle(el);
+          if (st.position === 'absolute' || st.position === 'fixed') continue;
+          if (!el.getClientRects().length) continue;
+          const r = el.getBoundingClientRect();
+          if (!r.width && !r.height) continue;
+          if (r.right <= 0) continue;
+          if (r.right > right + 1 || r.left < left - 1) {
+            out.push((el.id || el.className || el.tagName) + ' by ' +
+                     Math.round(Math.max(r.right - right, left - r.left)) + 'px');
+          }
+        }
+        return out;
+      });
+      expect(spills).toEqual([]);
+    });
+}
+
+// The chevron is decoration painted over the control. If it ever swallowed the
+// tap, the field would look fine and simply refuse to open on a phone.
+test('tapping the chevron opens the range, it does not eat the tap',
+  async ({ page }) => {
+    await open(page, 'prospect', HTML_REV);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+
+    const box = await page.locator('select[name="annual_revenue"]').boundingBox();
+    const onChevron = await page.evaluate(([x, y]) => {
+      const hit = document.elementFromPoint(x, y);
+      return hit && hit.tagName === 'SELECT';
+    }, [box.x + box.width - 18, box.y + box.height / 2]);
+    expect(onChevron).toBe(true);
+  });
+
+// A phone shows the label row's two halves stacked; a laptop shows them on one
+// line. Both have to stay inside the card, and neither may clip the hint.
+test('the revenue label and its qualifier share a row on desktop and stack on a phone',
+  async ({ page }) => {
+    const rows = async () => page.evaluate(() => {
+      const sel = document.querySelector('select[name="annual_revenue"]');
+      const row = sel.closest('div').previousElementSibling;
+      const kids = [...row.children].map((e) => e.getBoundingClientRect());
+      return { sameLine: Math.abs(kids[0].top - kids[1].top) < 6,
+               overflows: kids.some((r) => r.right > row.getBoundingClientRect().right + 1) };
+    });
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await open(page, 'prospect', HTML_REV);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    expect(await rows()).toEqual({ sameLine: true, overflows: false });
+
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.waitForTimeout(150);
+    expect(await rows()).toEqual({ sameLine: false, overflows: false });
+  });

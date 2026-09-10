@@ -235,8 +235,8 @@ ${open}${embed}${close}
  * page() does — never exercises this, so the whole class of bug is invisible
  * to every test that uses it.
  */
-function pageInWebflowColumn() {
-  const inner = page();
+function pageInWebflowColumn(opts = {}) {
+  const inner = page(opts);
   const body = inner.slice(inner.indexOf('<body>') + 6, inner.lastIndexOf('</body>'));
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
