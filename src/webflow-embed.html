@@ -219,7 +219,29 @@
   box-shadow:0 0 0 3px rgba(255,205,4,.42);
 }
 
-#usv-demo .usv-newbtn{
+/* --- select --------------------------------------------------------------
+   A native <select>, not a card row. Three more cards would push the last
+   step past a phone screen, and a range is a lookup, not a decision worth
+   3x the vertical space. appearance:none strips the platform arrow so the
+   control matches every other input; the chevron below replaces it. The
+   wrapper owns the chevron because a <select> cannot have children that
+   render, and pointer-events:none on it keeps the whole box clickable. */
+#usv-demo .usv-sel{position:relative;display:block;}
+#usv-demo .usv-sel select{padding-right:40px;cursor:pointer;}
+/* Until something is picked the control reads as a placeholder, like every
+   other empty field on the step, rather than as an answered question. */
+#usv-demo .usv-sel select:invalid{color:#a8a29a;}
+#usv-demo .usv-sel option{color:var(--usv-ink);}
+#usv-demo .usv-sel-icon{
+  position:absolute;top:50%;right:14px;transform:translateY(-50%);
+  display:block;color:var(--usv-ink-3);pointer-events:none;
+}
+#usv-demo .usv-sel-icon svg{display:block;}
+
+/* The two things that ride in a label row: the New Restaurant shortcut, and
+   the qualifier that keeps the revenue ranges answerable. Same yellow
+   underline, same wrapping behaviour; only one of them is clickable. */
+#usv-demo .usv-newbtn,#usv-demo .usv-hint{
   /* Matches .usv-label's 7px. On a phone this shortcut wraps onto its own
      line, and without the margin it sits flush on the input - close enough
      that the yellow underline is lost against the focus ring and the whole
@@ -232,11 +254,13 @@
      good deal less than the viewport. Allowed to shrink, it wraps instead. */
   flex:0 1 auto;max-width:100%;text-align:left;
   font-family:var(--usv-sans);font-size:13px;font-weight:700;
-  color:var(--usv-ink);background:none;border:0;padding:0;cursor:pointer;
+  color:var(--usv-ink);background:none;border:0;padding:0;
   text-decoration:underline;text-decoration-color:var(--usv-yellow);
   text-decoration-thickness:2px;text-underline-offset:3px;
-  transition:background-color .15s ease;
 }
+/* The hint is text. It gets the look and the wrapping, never the affordance. */
+#usv-demo .usv-hint{color:var(--usv-ink-2);}
+#usv-demo .usv-newbtn{cursor:pointer;transition:background-color .15s ease;}
 #usv-demo .usv-newbtn:hover{background:var(--usv-yellow);}
 #usv-demo .usv-newbtn:focus-visible{outline:2px solid var(--usv-ink);outline-offset:2px;}
 #usv-demo .usv-help{
@@ -653,6 +677,33 @@
             <p class="usv-err" id="usv-help-err">Let us know what you need.</p>
           </div>
 
+          <!-- Off unless the page asks for it. A page that does not deletes
+               this node outright rather than hiding it: Default builds its
+               payload by reading the DOM, and a hidden control is still a
+               control. See askRevenue(). -->
+          <div class="usv-field" id="usv-f-rev" hidden>
+            <div class="usv-labelrow">
+              <label class="usv-label" for="usv-rev">Annual revenue<span class="usv-req">*</span></label>
+              <span class="usv-hint" id="usv-rev-hint">Approximate, per location</span>
+            </div>
+            <div class="usv-sel">
+              <select class="usv-input" id="usv-rev" name="annual_revenue"
+                      aria-describedby="usv-rev-hint" required>
+                <option value="">Select a range</option>
+                <option value="under_300k">Under $300k</option>
+                <option value="300k_1m">$300k to $1 million</option>
+                <option value="1m_plus">$1 million+</option>
+              </select>
+              <span class="usv-sel-icon">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M4 6.5 8 10.5 12 6.5" stroke="currentColor" stroke-width="1.8"
+                        stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            </div>
+            <p class="usv-err" id="usv-rev-err">Pick the range that fits.</p>
+          </div>
+
           <div class="usv-row">
             <div class="usv-field" id="usv-f-first">
               <label class="usv-label" for="usv-first">First name<span class="usv-req">*</span></label>
@@ -840,6 +891,42 @@
                                                    'Invoices and payment method']
     ],
 
+    /* -- Annual revenue ----------------------------------------------------
+       The revenue question is OFF everywhere by default. Four ways to turn it
+       on for a page, in the order askRevenue() checks them:
+
+       1. A one-line script tag in Page settings > Inside head, above the form,
+          setting:  window.USV_ASK_REVENUE = true;
+          Head, not "Before body ends" — the form boots when its own script
+          runs, which is before anything at the end of the body.
+
+       2. ?rev=1 on the URL. For previewing, not for a live page: a visitor who
+          arrives without it gets the other form.
+
+       3. A custom attribute in the Designer, on the section or div WRAPPING the
+          Embed element:
+            data-upserve-revenue = 1
+          No code and no rebuild — this is the one to reach for. It has to be a
+          wrapper: Webflow exposes custom attributes on ordinary elements, not
+          on Body and not on the Embed element itself. closest() walks the whole
+          way up, so any ancestor will do. On a Collection page the value can be
+          bound to a CMS field instead of typed.
+
+       4. This list, for pages you would rather manage in one place here.
+          Paths only, no domain; trailing slash optional. Changing it means a
+          rebuild and a re-paste of every page carrying the form, which is the
+          reason it is last.
+
+       Whichever route, a page that says no has the field removed from the DOM
+       at boot rather than hidden, so it cannot reach Default.
+
+       None of this shows up in the Designer canvas — page settings code is not
+       injected there and an Embed's scripts do not run there. Check it on the
+       staging URL. */
+    REVENUE_PATHS : [
+      // '/request-a-demo-revenue',
+    ],
+
     /* -- Behaviour ---------------------------------------------------------- */
     REGIONS            : ['us', 'ca'],   // Places country filter
     MIN_SUBMIT_SECONDS : 3,              // submit-speed floor
@@ -876,6 +963,54 @@
   var root = $('usv-demo');
   if (!root || root.dataset.usvBooted === '1') { return; }
   root.dataset.usvBooted = '1';
+
+  /* Does THIS page ask for annual revenue?
+
+     One embed, pasted everywhere. The page decides, so turning the question on
+     for a landing page is a change in the Designer rather than a rebuild and a
+     re-paste of every page that has the form on it.
+
+     Four ways to say yes, cheapest first — see REVENUE_PATHS in the config for
+     what each one is for. Nothing here is minified: the attribute and the
+     global are the two names a marketer types, so they have to survive a build
+     that renames everything carrying the usv- prefix.
+
+     Off means the field is REMOVED, not hidden. Default builds its payload by
+     reading the DOM, and a hidden control is still a control. */
+  function trimSlash(p) { return String(p).replace(/\/+$/, '') || '/'; }
+
+  function askRevenue() {
+    if (window.USV_ASK_REVENUE === true) return true;
+    if (/[?&]rev=1/.test(window.location.search)) return true;
+
+    /* The nearest ancestor carrying the attribute — the section or div wrapping
+       the Embed element. Its VALUE decides, so data-upserve-revenue="0" on a
+       section is a deliberate no under a wrapper that says yes.
+
+       Trimmed and case-insensitive: this is typed into a Designer field by
+       hand, and "False" or a trailing space must not silently mean the
+       opposite of what it says. */
+    var host = root.closest('[data-upserve-revenue]');
+    if (host) {
+      return !/^(0|false)?$/i.test(
+        (host.getAttribute('data-upserve-revenue') || '').trim());
+    }
+
+    /* Trailing slashes trimmed on BOTH sides, so an entry written either way
+       matches a visitor who arrived either way. Comparing the list raw is the
+       kind of bug that costs a rebuild and a re-paste to discover. */
+    var here = trimSlash(window.location.pathname);
+    for (var i = 0; i < CFG.REVENUE_PATHS.length; i++) {
+      if (trimSlash(CFG.REVENUE_PATHS[i]) === here) return true;
+    }
+    return false;
+  }
+
+  var ASK_REVENUE = askRevenue();
+  if (!ASK_REVENUE) {
+    var deadRev = document.getElementById('usv-f-rev');
+    if (deadRev && deadRev.parentNode) deadRev.parentNode.removeChild(deadRev);
+  }
 
   function txt(el, s) { if (el) el.textContent = s; }
   function say(s) { txt($('usv-live'), s); }
@@ -1383,7 +1518,7 @@
                   'rating', 'userRatingCount', 'priceLevel', 'priceRange',
                   'businessStatus', 'location', 'regularOpeningHours',
                   'primaryTypeDisplayName', 'primaryType', 'types',
-                  'pureServiceAreaBusiness', 'googleMapsURI', 'utcOffsetMinutes'];
+                  'isPureServiceAreaBusiness', 'googleMapsURI', 'utcOffsetMinutes'];
 
 
     place.fetchFields({ fields: FIELDS }).then(function () {
@@ -1400,7 +1535,12 @@
       else if (place.businessStatus === 'OPERATIONAL') preselectStatus('replacing_pos');
       newSessionToken();          // session closes once details are fetched
       say('Matched ' + (place.displayName || label));
-    }).catch(function () {
+    }).catch(function (err) {
+      /* Every place field we send downstream is lost here, and the visitor
+         sees nothing wrong — so say it somewhere findable. A single bad name
+         in FIELDS rejects the whole call, which is what this looks like when
+         Google renames something. */
+      if (window.console) console.warn('[usv] Places fetchFields failed', err);
       /* details failed but the prediction is still real */
       S.place    = { id: pp.placeId, displayName: label,
                      formattedAddress: String(pp.secondaryText || '') };
@@ -1762,6 +1902,11 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       if (!root.querySelector('input[name="restaurant_status"]:checked')) {
         setErr($('usv-f-status')); ok = false;
       } else clearErr($('usv-f-status'));
+
+      if (ASK_REVENUE) {
+        if (!$('usv-rev').value) { setErr($('usv-f-rev')); ok = false; }
+        else clearErr($('usv-f-rev'));
+      }
     }
 
     if ($('usv-first').value.trim().length < 1) { setErr($('usv-f-first')); ok = false; }
@@ -1866,8 +2011,15 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       showPanel(step2);
       $('usv-dot3').classList.add('is-on');
       window.setTimeout(function () {
-        var firstEmpty = root.querySelector('input[name="restaurant_status"]:checked')
-          ? $('usv-first') : null;
+        /* Only when we answered the first question for them: pick up where
+           they actually left off, which is the first empty thing BELOW that
+           answer. On a page asking for revenue that is the range, not the
+           name — skipping past it would scroll a required field off the top
+           and leave them to discover it at submit. Focusing a select opens no
+           picker and raises no keyboard, so this costs a phone nothing. */
+        var firstEmpty = !root.querySelector('input[name="restaurant_status"]:checked') ? null
+          : ASK_REVENUE && !$('usv-rev').value ? $('usv-rev')
+          : $('usv-first');
         if (firstEmpty && !firstEmpty.value) firstEmpty.focus();
       }, 40);
     }
@@ -1888,6 +2040,10 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     });
   }
 
+  if (ASK_REVENUE) {
+    on($('usv-rev'), 'change', function () { clearErr($('usv-f-rev')); });
+  }
+
   function isCustomer() { return S.visitor === 'current_customer'; }
 
   /* One details step, two questions. A prospect is asked about their timeline;
@@ -1897,6 +2053,20 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     var c = isCustomer();
     $('usv-f-status').hidden = c;
     $('usv-f-help').hidden = !c;
+    if (ASK_REVENUE) {
+      /* Prospects only. Someone who backs up and switches to the customer
+         branch must not leave a range behind for Default to read. */
+      $('usv-f-rev').hidden = c;
+      if (c) { $('usv-rev').value = ''; }
+    }
+    /* Whichever question is now hidden drops its error with it. A hidden field
+       still marked invalid sits earlier in the DOM than the visible one that
+       actually failed, and focusFirstInvalid would hand focus to something
+       that cannot take it — leaving the visitor on the submit button with no
+       idea which field to fix. */
+    clearErr($('usv-f-status'));
+    clearErr($('usv-f-help'));
+    if (ASK_REVENUE) clearErr($('usv-f-rev'));
     txt($('usv-h2'), c ? 'What do you need help with?' : 'Where are you today?');
     paintSubmit();
   }
@@ -2107,8 +2277,8 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     v.place_types        = place && place.types && place.types.length
                              ? place.types.join(', ') : '';
     /* No storefront: delivery-only or service-area business. */
-    v.place_service_area_only = place && typeof place.pureServiceAreaBusiness === 'boolean'
-                             ? String(place.pureServiceAreaBusiness) : '';
+    v.place_service_area_only = place && typeof place.isPureServiceAreaBusiness === 'boolean'
+                             ? String(place.isPureServiceAreaBusiness) : '';
     /* E.164, so it lands in the same shape as the lead's own number. */
     v.place_phone_e164   = place && place.internationalPhoneNumber
                              ? String(place.internationalPhoneNumber).replace(/[^+0-9]/g, '') : '';
@@ -2349,7 +2519,8 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     track('submit', {
       place_source  : S.match,
       place_verified: String(S.verified),
-      routing_owner : CFG.ROUTING[(root.querySelector('input[name="restaurant_status"]:checked') || {}).value] || ''
+      routing_owner : CFG.ROUTING[(root.querySelector('input[name="restaurant_status"]:checked') || {}).value] || '',
+      annual_revenue: ASK_REVENUE ? $('usv-rev').value : ''
     });
     setBusy(true);
     registerDefaultCallbacks();

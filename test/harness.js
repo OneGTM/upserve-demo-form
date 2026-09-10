@@ -104,7 +104,7 @@ const STUB = `<script>
             self.primaryTypeDisplayName = 'Seafood restaurant';
             self.primaryType = 'seafood_restaurant';
             self.types = ['seafood_restaurant', 'restaurant', 'food', 'establishment'];
-            self.pureServiceAreaBusiness = false;
+            self.isPureServiceAreaBusiness = false;
             self.internationalPhoneNumber = '+1 401-849-2900';
             self.priceRange = { startPrice:{units:20,currencyCode:'USD'},
                                 endPrice:{units:40,currencyCode:'USD'} };
@@ -162,8 +162,20 @@ const STUB = `<script>
 }());
 </script>`;
 
-/** The page under test: real embed + stubs. */
-function page() {
+/**
+ * The page under test: real embed + stubs.
+ *
+ * One embed goes on every page; the PAGE decides whether it also asks for
+ * annual revenue. `opts` builds a host page that says yes the way a real one
+ * would, so the tests exercise the switch a marketer actually touches:
+ *
+ *   { revenue: 'attribute' }  a wrapper carrying data-upserve-revenue="1"
+ *   { revenue: 'global' }     window.USV_ASK_REVENUE set in the head
+ *   { revenue: '<value>' }    that literal value on the wrapper, to check
+ *                             that "0" and "false" read as a no
+ *   { paths: ['/x'] }         seed CFG.REVENUE_PATHS, for the path route
+ */
+function page(opts = {}) {
   // The build emits ONE of two shapes: a single embed.html when it fits under
   // Webflow's cap, or two parts when it doesn't. Test whichever exists — that
   // is what actually gets pasted.
@@ -179,17 +191,36 @@ function page() {
   const raw = split
     ? fs.readFileSync(p1, 'utf8') + '\n' + fs.readFileSync(p2, 'utf8')
     : fs.readFileSync(embedPath, 'utf8');
-  const embed = raw
+  let embed = raw
     .replace(/GOOGLE_MAPS_API_KEY\s*:\s*'[^']*'/, "GOOGLE_MAPS_API_KEY:'TEST'");
+
+  // The shipped list is empty. Seeding it here keeps the path route testable
+  // without committing a path the live site does not have.
+  if (opts.paths) {
+    const before = embed;
+    embed = embed.replace('REVENUE_PATHS:[]',
+                          'REVENUE_PATHS:' + JSON.stringify(opts.paths));
+    if (embed === before) throw new Error('REVENUE_PATHS is not in the built embed');
+  }
+
+  const rev = opts.revenue;
+  const globalFlag = rev === 'global'
+    ? '<script>window.USV_ASK_REVENUE = true;</script>' : '';
+  // 'attribute' is the shorthand for the value a page would actually carry.
+  const attr = rev && rev !== 'global'
+    ? ' data-upserve-revenue="' + (rev === 'attribute' ? '1' : rev) + '"' : '';
+  const open = attr ? '<div' + attr + '>' : '';
+  const close = attr ? '</div>' : '';
 
   // The host page sets this, and mobile emulation depends on it: without it the
   // layout viewport falls back to 980px, so a phone-sized run silently measures
   // the desktop layout. upserve.com sets exactly this.
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>form under test</title></head><body>
+<title>form under test</title>
+${globalFlag}</head><body>
 ${STUB}
-${embed}
+${open}${embed}${close}
 </body></html>`;
 }
 
@@ -204,12 +235,17 @@ ${embed}
  * page() does — never exercises this, so the whole class of bug is invisible
  * to every test that uses it.
  */
-function pageInWebflowColumn() {
-  const inner = page();
+function pageInWebflowColumn(opts = {}) {
+  const inner = page(opts);
   const body = inner.slice(inner.indexOf('<body>') + 6, inner.lastIndexOf('</body>'));
+  // page() puts the `revenue: 'global'` route in the HEAD. This wrapper builds
+  // its own head, so carry that script across — dropping it turned a supported
+  // option into a page with the question quietly switched off.
+  const head = inner.slice(inner.indexOf('</title>') + 8, inner.indexOf('</head>'));
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>form in a Webflow column</title>
+${head}
 <style>
   *,*::before,*::after{box-sizing:border-box}
   body{margin:0}

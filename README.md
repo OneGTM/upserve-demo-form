@@ -32,7 +32,8 @@ it straight out of the repo — no clone, no build, no `config.local.json`. On a
 machine that has the repo:
 
 ```bash
-npm run copy      # builds, then puts webflow/embed.html on your clipboard
+npm run copy      # builds, then puts the embed on your clipboard
+                  # (if it ever needs two, it says so — `npm run copy:2` for part 2)
 ```
 
 1. Open the demo page in the Designer.
@@ -41,6 +42,19 @@ npm run copy      # builds, then puts webflow/embed.html on your clipboard
 4. Save and publish.
 
 One paste. Nothing in Page Settings, no second embed, no external script.
+
+### Sizing the Embed element
+
+Give the Embed element the **full width of whatever column it sits in** and
+leave it at that — no fixed width, no fixed height, no min-height, no padding
+tuned to the form. Every constraint the form needs is already in its own CSS:
+it centres itself, caps at 780px, shrinks to 280px, and sets its own responsive
+padding. Sizing it a second time in the Designer only gives the two a chance to
+disagree — and the Designer's copy is invisible to the tests, so a layout bug
+introduced there is one nobody can reproduce from the repo.
+
+The one thing that *is* worth setting in Webflow is the vertical space around
+the embed, since that belongs to the page, not the form.
 
 > **Paste `webflow/embed.html`, never `src/webflow-embed.html`.** The source is
 > ~95,000 characters — mostly comments — and Webflow will reject it at 50,000.
@@ -208,6 +222,87 @@ One form, two branches. Step 1 decides which.
 All fields are required on both branches: first name, last name, email,
 mobile phone, restaurant name, and the branch question.
 
+### Annual revenue — on for the pages that want it
+
+One required question between the branch question and the name fields. It is
+**off everywhere by default**, and shown **only on the prospect branch** — an
+existing customer asking for support is not being qualified.
+
+| `annual_revenue` | Shown as |
+|---|---|
+| `under_300k` | Under $300k |
+| `300k_1m` | $300k to $1 million |
+| `1m_plus` | $1 million+ |
+
+It is a `<select>` rather than a fourth set of radio cards: three more cards
+push the last step past a phone screen, and picking a range is a lookup, not a
+decision worth that much room. The label carries "Approximate, per location" so
+a multi-location operator has an answer instead of a reason to abandon.
+
+Switching to the customer branch after answering clears it, so a range can
+never ride along on a submission that never asked for one.
+
+#### Turning it on for a page
+
+The same `embed.html` goes on every page. The **page** decides whether it also
+asks, so changing your mind about a landing page is a change in the Designer,
+not a rebuild and a re-paste everywhere the form lives.
+
+**The one to reach for — a custom attribute, no code:**
+
+1. Select the **section or div wrapping** the Embed element. Not Body: Webflow
+   does not expose custom attributes on it. Not the Embed element itself
+   either, which is why the wrapper is named — the form walks up the tree with
+   `closest()`, so anywhere above it works.
+2. Element settings panel → **Custom attributes** → add:
+
+   | Name | Value |
+   |---|---|
+   | `data-upserve-revenue` | `1` |
+
+3. **Publish** (staging is enough).
+
+The nearest ancestor carrying the attribute wins, and its **value** decides —
+so `data-upserve-revenue="0"` on the section inside a wrapper that says yes is
+a deliberate no. `0`, `false` and `False` all mean no, spaces and capitals
+included; anything else means yes.
+
+On a Collection page you can bind that value to a CMS field instead of typing
+it, which is how you'd let the question follow a switch on each landing page
+rather than a Designer edit. Custom attributes only accept CMS bindings on
+Collection pages and inside Collection lists.
+
+**The other three:**
+
+| How | Where | Good for |
+|---|---|---|
+| `window.USV_ASK_REVENUE = true` in a script tag | Page settings → **Inside `<head>`** | A page you already have custom code on |
+| `?rev=1` on the URL | — | Previewing. Not a live page — a visitor without it gets the other form |
+| A path in `CFG.REVENUE_PATHS` | `src/webflow-embed.html`, then rebuild | A fixed set of pages you'd rather manage in the repo |
+
+`Inside <head>`, not "Before `</body>`": the form boots when its own script
+runs, which is before anything at the end of the body.
+
+> **Test on staging, not the canvas.** Neither route shows up in the Designer:
+> Page settings code is not injected into the canvas preview, and an Embed's
+> scripts do not execute there either. Publish to `yoursite.webflow.io` and
+> check there. This is not specific to this form — it is true of all Webflow
+> custom code.
+
+If the slugs churn more than the pages do, note that Webflow stamps a stable
+per-page id on `<html data-wf-page="…">`. Swapping `REVENUE_PATHS` for a list
+of those ids survives a rename, at the cost of a list nobody can read.
+
+A page that says no has the field **removed from the DOM** at boot rather than
+hidden. Default builds its payload by reading the DOM, and a hidden control is
+still a control — so hiding it would quietly send an empty `annual_revenue` on
+every page that never asked.
+
+`data-upserve-revenue`, `USV_ASK_REVENUE` and `REVENUE_PATHS` are the three
+names typed outside this repo, so none of them carry the `usv-` prefix the
+build minifies — they mean the same thing in the source and in the shipped
+embed, and a test asserts each one still works against the built file.
+
 ### Routing
 
 | Branch | Answer | `routing_owner` |
@@ -270,7 +365,8 @@ picked, otherwise what they typed).
 
 **Qualification** — `visitor_type` (`prospect` / `current_customer`), plus
 either `restaurant_status` or `help_topic` depending on the branch, and
-`routing_owner`.
+`routing_owner`, plus `annual_revenue` on the prospect branch of a page that
+asks for it.
 
 A diner never submits.
 

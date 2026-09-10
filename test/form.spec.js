@@ -14,6 +14,9 @@ const { test, expect } = require('@playwright/test');
 const { page: buildPage, pageInWebflowColumn } = require('./harness');
 
 const HTML = buildPage();
+/* The same embed on a page that asks for annual revenue, the way a real one
+   would: a wrapper around the Embed element carrying the attribute. */
+const HTML_REV = buildPage({ revenue: 'attribute' });
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 
@@ -26,8 +29,8 @@ async function clickContinue(page) {
 }
 
 /** Open the form and clear the triage step as a prospect. */
-async function open(page, visitor = 'prospect') {
-  await page.setContent(HTML, { waitUntil: 'load' });
+async function open(page, visitor = 'prospect', html = HTML) {
+  await page.setContent(html, { waitUntil: 'load' });
   await page.waitForFunction(() => !!document.querySelector('[role="combobox"]'));
   openedAt.set(page, Date.now());
   await page.waitForTimeout(150);
@@ -925,8 +928,13 @@ test('no step ever scrolls the page sideways', async ({ page }) => {
   await noOverflow('details with the typo hint open');
 });
 
-test('no visible field is small enough to make iOS zoom on focus', async ({ page }) => {
-  await open(page);
+// Both pages: the revenue select only exists on one of them, and a select is
+// exactly the control a 16px floor is easiest to forget on.
+for (const [what, html] of [['a plain page', undefined],
+                            ['a page asking for revenue', 'REV']]) {
+test('no visible field is small enough to make iOS zoom on focus, on ' + what,
+  async ({ page }) => {
+  await open(page, 'prospect', html === 'REV' ? HTML_REV : HTML);
   await pickRestaurant(page, 'Tautog');
   await continueToStep2(page);
   const tooSmall = await page.evaluate(() =>
@@ -941,6 +949,7 @@ test('no visible field is small enough to make iOS zoom on focus', async ({ page
       .filter((x) => x.size < 16));
   expect(tooSmall).toEqual([]);
 });
+}
 
 test('the text-sized controls have a hit area far bigger than their text',
   async ({ page }) => {
@@ -1168,7 +1177,10 @@ for (const width of SPILL_WIDTHS) {
         // The build minifies every class name, so the card is found by what it
         // looks like rather than what it is called: the nearest ancestor of the
         // name field that paints itself white and carries real padding.
-        let card = document.querySelector('[name="restaurant_name"]');
+        // Start ABOVE the field: an input paints itself --usv-paper too, and
+        // only its padding kept it from ending this walk on itself and making
+        // every assertion below vacuous.
+        let card = document.querySelector('[name="restaurant_name"]').parentElement;
         while (card && card !== document.body) {
           const c = getComputedStyle(card);
           if (c.backgroundColor === 'rgb(255, 255, 255)'
@@ -1229,4 +1241,327 @@ test('no element in the shipped embed declares a fixed pixel width', () => {
     }
   }
   expect(offenders).toEqual([]);
+});
+
+/* ── the revenue question ────────────────────────────────────────────────────
+ *
+ * One embed goes on every page; the page decides whether it also asks for
+ * revenue. What has to hold is that a page which does not ask cannot leak the
+ * field, that the ones which do get it in the right place, and that all four
+ * ways of saying yes actually work — those are the strings a marketer types
+ * into the Designer, and a build that renamed one of them would fail silently.
+ */
+
+const REVENUE = 'select[name="annual_revenue"]';
+
+test('a page that does not ask has no revenue question in it at all',
+  async ({ page }) => {
+    await open(page);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+
+    await expect(page.locator(REVENUE)).toHaveCount(0);
+    await expect(page.getByText(/annual revenue/i)).toHaveCount(0);
+
+    await fillContact(page);
+    await submit(page);
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    expect((await submissions(page))[0].fields).not.toHaveProperty('annual_revenue');
+  });
+
+/* Each of these is a switch someone flips in Webflow, so each is tested
+   against the built file rather than trusted. */
+const SWITCHES = [
+  ['a wrapper attribute',      { revenue: 'attribute' }],
+  ['the attribute set to true', { revenue: 'true' }],
+  ['a window global set in the head', { revenue: 'global' }],
+  ['a path in REVENUE_PATHS',  { paths: ['/book-a-demo'] }],
+  ['a path written with a trailing slash', { paths: ['/book-a-demo/'] }]
+];
+
+for (const [how, opts] of SWITCHES) {
+  test(`${how} turns the revenue question on`, async ({ page }) => {
+    const html = buildPage(opts);
+    if (opts.paths) {
+      // the path route is the only one that needs a real URL
+      await page.route('**/*', (r) =>
+        r.fulfill({ contentType: 'text/html', body: html }));
+      await page.goto('http://upserve.test' +
+                      opts.paths[0].replace(/\/+$/, ''));
+      await page.waitForFunction(() => !!document.querySelector('[role="combobox"]'));
+      openedAt.set(page, Date.now());
+      await page.waitForTimeout(150);
+      await page.locator('input[value="prospect"]').check({ force: true });
+      await clickContinue(page);
+    } else {
+      await open(page, 'prospect', html);
+    }
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await expect(page.locator(REVENUE)).toBeVisible();
+  });
+}
+
+// A section saying no wins over anything above it saying yes. The value is
+// typed by hand into a Designer field, so capitalisation and a stray space
+// must not flip its meaning.
+for (const off of ['0', 'false', 'False', ' false ', '  0']) {
+  test(`the attribute set to "${off}" is a deliberate no`, async ({ page }) => {
+    await open(page, 'prospect', buildPage({ revenue: off }));
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await expect(page.locator(REVENUE)).toHaveCount(0);
+  });
+}
+
+test('a page that does ask puts it between the timeline and their name',
+  async ({ page }) => {
+    await open(page, 'prospect', HTML_REV);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+
+    await expect(page.locator(REVENUE)).toBeVisible();
+
+    // Order is the point: after the cards, before the name row.
+    const order = await page.evaluate(() => {
+      const sel = document.querySelector('select[name="annual_revenue"]');
+      const status = document.querySelector('input[name="restaurant_status"]');
+      const first = document.querySelector('input[name="first_name"]');
+      const pos = (a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
+      return { afterStatus: !!pos(status, sel), beforeName: !!pos(sel, first) };
+    });
+    expect(order).toEqual({ afterStatus: true, beforeName: true });
+  });
+
+test('a customer is never asked their revenue', async ({ page }) => {
+  await open(page, 'current_customer', HTML_REV);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+
+  await expect(page.locator(REVENUE)).toBeHidden();
+
+  await page.locator('input[value="add_location"]').check({ force: true });
+  await fillContact(page);
+  await submit(page);
+
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  expect((await submissions(page))[0].fields.annual_revenue).toBe('');
+});
+
+test('a prospect cannot submit without a range', async ({ page }) => {
+  await open(page, 'prospect', HTML_REV);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await page.locator('input[value="replacing_pos"]').check({ force: true });
+  await fillContact(page);
+  await submit(page);
+
+  await expect(page.getByText(/pick the range that fits/i)).toBeVisible();
+  expect(await submissions(page)).toHaveLength(0);
+
+  await page.selectOption(REVENUE, '1m_plus');
+  await expect(page.getByText(/pick the range that fits/i)).toBeHidden();
+  await submit(page);
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+});
+
+test('the range reaches Default with its options and a readable label',
+  async ({ page }) => {
+    await open(page, 'prospect', HTML_REV);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await page.locator('input[value="replacing_pos"]').check({ force: true });
+    await page.selectOption(REVENUE, '300k_1m');
+    await fillContact(page);
+    await submit(page);
+
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    const { fields, labels, optionsByName } = (await submissions(page))[0];
+
+    expect(fields.annual_revenue).toBe('300k_1m');
+    expect(labels.annual_revenue).toMatch(/annual revenue/i);
+    expect(labels.annual_revenue).not.toMatch(/annual_revenue/);
+    // Default branches on the option set, so all three have to arrive.
+    expect(optionsByName.annual_revenue)
+      .toEqual(['', 'under_300k', '300k_1m', '1m_plus']);
+  });
+
+// Someone who answers as a prospect, backs up, and comes back as a customer
+// must not leave a range behind for Default to read.
+test('switching to the customer branch drops an answered range', async ({ page }) => {
+  await open(page, 'prospect', HTML_REV);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await page.selectOption(REVENUE, 'under_300k');
+
+  await page.getByRole('button', { name: /back/i }).first().click();
+  await page.getByRole('button', { name: /back/i }).first().click();
+  await page.locator('input[value="current_customer"]').check({ force: true });
+  await clickContinue(page);
+  await clickContinue(page);
+  await expect(page.locator('input[name="first_name"]')).toBeVisible();
+
+  await expect(page.locator(REVENUE)).toBeHidden();
+  expect(await page.locator(REVENUE).inputValue()).toBe('');
+});
+
+/* The spill sweep above stops at the finder, because that is where the widest
+   things used to be. The details step is now the longest one on the page and
+   the only one carrying a <select>, so it gets its own pass — in the same
+   Webflow flex column, on the narrowest phones anyone still ships. */
+for (const width of [320, 360, 390]) {
+  test('nothing on the details step spills out of the card at ' + width + 'px',
+    async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.setContent(pageInWebflowColumn({ revenue: 'attribute' }),
+                            { waitUntil: 'load' });
+      await page.waitForFunction(() => !!document.querySelector('input[value="prospect"]'));
+      await page.waitForTimeout(150);
+      await page.locator('input[value="prospect"]').check({ force: true });
+      await page.locator('button:visible').filter({ hasText: /continue/i }).first().click();
+
+      const input = page.locator('[role="combobox"]');
+      await input.click();
+      await input.fill('Tautog');
+      await page.locator('[role="option"]').first().waitFor();
+      await page.locator('[role="option"]').first().click();
+      await page.waitForTimeout(150);
+      await page.locator('button:visible').filter({ hasText: /continue/i }).first().click();
+      await page.waitForTimeout(250);
+
+      await expect(page.locator('select[name="annual_revenue"]')).toBeVisible();
+
+      const spills = await page.evaluate(() => {
+        // Start above the field — see the note on the finder's sweep.
+        let card = document.querySelector('[name="first_name"]').parentElement;
+        while (card && card !== document.body) {
+          const c = getComputedStyle(card);
+          if (c.backgroundColor === 'rgb(255, 255, 255)'
+              && parseFloat(c.paddingLeft) >= 16) break;
+          card = card.parentElement;
+        }
+        const cs = getComputedStyle(card);
+        const box = card.getBoundingClientRect();
+        const left = box.left + parseFloat(cs.borderLeftWidth) + parseFloat(cs.paddingLeft);
+        const right = box.right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight);
+        const out = [];
+        for (const el of card.querySelectorAll('*')) {
+          const st = getComputedStyle(el);
+          if (st.position === 'absolute' || st.position === 'fixed') continue;
+          if (!el.getClientRects().length) continue;
+          const r = el.getBoundingClientRect();
+          if (!r.width && !r.height) continue;
+          if (r.right <= 0) continue;
+          if (r.right > right + 1 || r.left < left - 1) {
+            out.push((el.id || el.className || el.tagName) + ' by ' +
+                     Math.round(Math.max(r.right - right, left - r.left)) + 'px');
+          }
+        }
+        return out;
+      });
+      expect(spills).toEqual([]);
+    });
+}
+
+// The chevron is decoration painted over the control. If it ever swallowed the
+// tap, the field would look fine and simply refuse to open on a phone.
+test('tapping the chevron opens the range, it does not eat the tap',
+  async ({ page }) => {
+    await open(page, 'prospect', HTML_REV);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+
+    const box = await page.locator('select[name="annual_revenue"]').boundingBox();
+    const onChevron = await page.evaluate(([x, y]) => {
+      const hit = document.elementFromPoint(x, y);
+      return hit && hit.tagName === 'SELECT';
+    }, [box.x + box.width - 18, box.y + box.height / 2]);
+    expect(onChevron).toBe(true);
+  });
+
+// A phone shows the label row's two halves stacked; a laptop shows them on one
+// line. Both have to stay inside the card, and neither may clip the hint.
+test('the revenue label and its qualifier share a row on desktop and stack on a phone',
+  async ({ page }) => {
+    const rows = async () => page.evaluate(() => {
+      const sel = document.querySelector('select[name="annual_revenue"]');
+      const row = sel.closest('div').previousElementSibling;
+      const kids = [...row.children].map((e) => e.getBoundingClientRect());
+      return { sameLine: Math.abs(kids[0].top - kids[1].top) < 6,
+               overflows: kids.some((r) => r.right > row.getBoundingClientRect().right + 1) };
+    });
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await open(page, 'prospect', HTML_REV);
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    expect(await rows()).toEqual({ sameLine: true, overflows: false });
+
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.waitForTimeout(150);
+    expect(await rows()).toEqual({ sameLine: false, overflows: false });
+  });
+
+/* Arriving at the last step with the first question already answered for them,
+   the form picks up at the first empty field below it. With revenue on that is
+   the range — landing on the name instead would scroll a required field off
+   the top and save the discovery for the submit button. */
+test('landing on the details step focuses the range, not past it', async ({ page }) => {
+  await open(page, 'prospect', HTML_REV);
+  const input = page.locator('[role="combobox"]');
+  await input.click();
+  await input.fill('Somewhere Brand New');
+  const notListed = page.getByRole('option', { name: /isn.t listed yet/i });
+  await notListed.waitFor({ state: 'visible' });
+  await notListed.click();
+  // "not listed" pre-selects brand-new, which is what makes the step pick a
+  // field to focus at all.
+  await expect(page.locator('input[value="brand_new_opening"]')).toBeChecked();
+  await clickContinue(page);
+  await expect(page.locator('select[name="annual_revenue"]')).toBeVisible();
+  await page.waitForTimeout(200);
+
+  expect(await page.evaluate(() => document.activeElement.name)).toBe('annual_revenue');
+
+  // Answered, it hands focus on to the name the way it always did.
+  await page.selectOption('select[name="annual_revenue"]', 'under_300k');
+  await page.getByRole('button', { name: /back/i }).first().click();
+  await clickContinue(page);
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => document.activeElement.name)).toBe('first_name');
+});
+
+/* Switching branches has to take the old branch's error with it. A hidden
+   field still marked invalid sits earlier in the DOM than the visible one that
+   actually failed, so focusFirstInvalid reaches for something that cannot take
+   focus and the visitor is left on the submit button with nothing highlighted. */
+test('the branch you left does not keep its error', async ({ page }) => {
+  await open(page, 'prospect');
+  await pickRestaurant(page, 'Just Wing');
+  await continueToStep2(page);
+
+  // Fail the prospect branch on purpose: no timeline picked.
+  await page.locator('input[name="restaurant_status"]:checked')
+    .evaluate((el) => { el.checked = false; }).catch(() => {});
+  await fillContact(page);
+  await submit(page);
+  expect(await submissions(page)).toHaveLength(0);
+
+  // Back out, come back as a customer, and fail that branch instead.
+  await page.getByRole('button', { name: /back/i }).first().click();
+  await page.getByRole('button', { name: /back/i }).first().click();
+  await page.locator('input[value="current_customer"]').check({ force: true });
+  await clickContinue(page);
+  await clickContinue(page);
+  await page.waitForTimeout(150);
+  await submit(page);
+
+  // The only field wearing an error is the one that is actually on screen.
+  const invalid = await page.evaluate(() =>
+    [...document.querySelectorAll('.is-invalid, [class*="invalid"]')]
+      .filter((e) => e.querySelector('input,select'))
+      .map((e) => ({ hidden: !e.offsetParent,
+                     field: e.querySelector('input,select').name })));
+  expect(invalid.filter((f) => f.hidden)).toEqual([]);
+  expect(invalid.some((f) => f.field === 'help_topic')).toBe(true);
 });
