@@ -316,6 +316,36 @@ names typed outside this repo, so none of them carry the `usv-` prefix the
 build minifies — they mean the same thing in the source and in the shipped
 embed, and a test asserts each one still works against the built file.
 
+### Lead source — set per page
+
+Which channel a page's leads count as, sent as the hidden field `lead_source`.
+Same form everywhere; the page sets the value with the same kind of wrapper
+attribute as the revenue switch:
+
+1. Select the **section or div wrapping** the Embed element (the same one as
+   `data-upserve-revenue`, if the page has it — they sit side by side).
+2. Element settings → **Custom attributes** → add:
+
+   | Name | Value |
+   |---|---|
+   | `data-upserve-lead-source` | `Paid` |
+
+3. **Publish**, and check on staging, not the canvas.
+
+The value goes through **exactly as typed**, apart from trimming spaces. Type it
+the way the CRM's picklist spells it (`Inbound`, `Outbound`, `Paid`,
+`Automated Outbound`, …) — this form does not keep a list of allowed values, so
+a new channel needs no rebuild, and a typo reaches the CRM as-is. Nearest
+ancestor wins, so a section can override a wrapper above it. On a Collection
+page the value can be bound to a CMS field.
+
+A page with no attribute sends `lead_source=''`. The value is read once at boot
+and the hidden input is in the form **from load**, not added at submit, so
+anything that reads the form before submit sees it too.
+
+`lead_source` sits next to the UTMs rather than replacing them: this is the
+page's channel, the UTMs are the click's.
+
 ### Routing
 
 | Branch | Answer | `routing_owner` |
@@ -380,6 +410,10 @@ picked, otherwise what they typed).
 either `restaurant_status` or `help_topic` depending on the branch, and
 `routing_owner`, plus `annual_revenue` on the prospect branch of a page that
 asks for it.
+
+**Attribution** — `lead_source` (set per page, see above), `utm_source`,
+`utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `gclid`,
+`landing_page`, `referrer`.
 
 A diner never submits.
 
