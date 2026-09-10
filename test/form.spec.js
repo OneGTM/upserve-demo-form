@@ -1495,3 +1495,32 @@ test('the revenue label and its qualifier share a row on desktop and stack on a 
     await page.waitForTimeout(150);
     expect(await rows()).toEqual({ sameLine: false, overflows: false });
   });
+
+/* Arriving at the last step with the first question already answered for them,
+   the form picks up at the first empty field below it. With revenue on that is
+   the range — landing on the name instead would scroll a required field off
+   the top and save the discovery for the submit button. */
+test('landing on the details step focuses the range, not past it', async ({ page }) => {
+  await open(page, 'prospect', HTML_REV);
+  const input = page.locator('[role="combobox"]');
+  await input.click();
+  await input.fill('Somewhere Brand New');
+  const notListed = page.getByRole('option', { name: /isn.t listed yet/i });
+  await notListed.waitFor({ state: 'visible' });
+  await notListed.click();
+  // "not listed" pre-selects brand-new, which is what makes the step pick a
+  // field to focus at all.
+  await expect(page.locator('input[value="brand_new_opening"]')).toBeChecked();
+  await clickContinue(page);
+  await expect(page.locator('select[name="annual_revenue"]')).toBeVisible();
+  await page.waitForTimeout(200);
+
+  expect(await page.evaluate(() => document.activeElement.name)).toBe('annual_revenue');
+
+  // Answered, it hands focus on to the name the way it always did.
+  await page.selectOption('select[name="annual_revenue"]', 'under_300k');
+  await page.getByRole('button', { name: /back/i }).first().click();
+  await clickContinue(page);
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => document.activeElement.name)).toBe('first_name');
+});

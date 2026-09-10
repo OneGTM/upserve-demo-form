@@ -1999,8 +1999,15 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       showPanel(step2);
       $('usv-dot3').classList.add('is-on');
       window.setTimeout(function () {
-        var firstEmpty = root.querySelector('input[name="restaurant_status"]:checked')
-          ? $('usv-first') : null;
+        /* Only when we answered the first question for them: pick up where
+           they actually left off, which is the first empty thing BELOW that
+           answer. On a page asking for revenue that is the range, not the
+           name — skipping past it would scroll a required field off the top
+           and leave them to discover it at submit. Focusing a select opens no
+           picker and raises no keyboard, so this costs a phone nothing. */
+        var firstEmpty = !root.querySelector('input[name="restaurant_status"]:checked') ? null
+          : ASK_REVENUE && !$('usv-rev').value ? $('usv-rev')
+          : $('usv-first');
         if (firstEmpty && !firstEmpty.value) firstEmpty.focus();
       }, 40);
     }
