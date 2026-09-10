@@ -1596,3 +1596,29 @@ test('the branch you left does not keep its error', async ({ page }) => {
   expect(invalid.filter((f) => f.hidden)).toEqual([]);
   expect(invalid.some((f) => f.field === 'help_topic')).toBe(true);
 });
+
+/* Whatever this build says to paste has to be IN the repo, because that is how
+   it gets to whoever installs it — they open the file on GitHub and copy it,
+   with no clone and no build. The parts were gitignored, so the day the form
+   crossed the cap the repo would have held nothing pasteable at all: the build
+   deletes embed.html when it splits. */
+test('the file the build tells you to paste is committed, not ignored', () => {
+  const { execFileSync } = require('child_process');
+  const path = require('path');
+  const root = path.join(__dirname, '..');
+
+  const candidates = ['webflow/embed.html',
+                      'webflow/embed-part1.html', 'webflow/embed-part2.html'];
+  // check-ignore exits 1 when nothing matches, which is the passing case, so
+  // read the status rather than letting execFileSync throw on success.
+  let out = '';
+  try {
+    out = execFileSync('git', ['check-ignore', '--no-index', ...candidates],
+                       { cwd: root, encoding: 'utf8' });
+  } catch (e) {
+    if (e.status !== 1) throw e;          // 1 = no matches; anything else is real
+    out = e.stdout || '';
+  }
+
+  expect(out.trim().split('\n').filter(Boolean)).toEqual([]);
+});
