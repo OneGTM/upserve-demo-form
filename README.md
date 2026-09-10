@@ -263,7 +263,8 @@ not a rebuild and a re-paste everywhere the form lives.
 
 The nearest ancestor carrying the attribute wins, and its **value** decides —
 so `data-upserve-revenue="0"` on the section inside a wrapper that says yes is
-a deliberate no.
+a deliberate no. `0`, `false` and `False` all mean no, spaces and capitals
+included; anything else means yes.
 
 On a Collection page you can bind that value to a CMS field instead of typing
 it, which is how you'd let the question follow a switch on each landing page

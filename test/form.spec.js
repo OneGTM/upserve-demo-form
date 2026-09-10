@@ -1297,8 +1297,10 @@ for (const [how, opts] of SWITCHES) {
   });
 }
 
-// A section saying no wins over anything above it saying yes.
-for (const off of ['0', 'false']) {
+// A section saying no wins over anything above it saying yes. The value is
+// typed by hand into a Designer field, so capitalisation and a stray space
+// must not flip its meaning.
+for (const off of ['0', 'false', 'False', ' false ', '  0']) {
   test(`the attribute set to "${off}" is a deliberate no`, async ({ page }) => {
     await open(page, 'prospect', buildPage({ revenue: off }));
     await pickRestaurant(page, 'Tautog');

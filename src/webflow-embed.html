@@ -981,11 +981,18 @@
     if (window.USV_ASK_REVENUE === true) return true;
     if (/[?&]rev=1/.test(window.location.search)) return true;
 
-    /* The nearest ancestor carrying the attribute — the section wrapping the
-       Embed element, or Body. Its VALUE decides, so data-upserve-revenue="0"
-       on a section is a deliberate no even when Body above it says yes. */
+    /* The nearest ancestor carrying the attribute — the section or div wrapping
+       the Embed element. Its VALUE decides, so data-upserve-revenue="0" on a
+       section is a deliberate no under a wrapper that says yes.
+
+       Trimmed and case-insensitive: this is typed into a Designer field by
+       hand, and "False" or a trailing space must not silently mean the
+       opposite of what it says. */
     var host = root.closest('[data-upserve-revenue]');
-    if (host) return !/^(0|false)?$/.test(host.getAttribute('data-upserve-revenue'));
+    if (host) {
+      return !/^(0|false)?$/i.test(
+        (host.getAttribute('data-upserve-revenue') || '').trim());
+    }
 
     /* Trailing slash trimmed here, so the list can be written either way. */
     return CFG.REVENUE_PATHS.indexOf(
