@@ -238,9 +238,14 @@ ${open}${embed}${close}
 function pageInWebflowColumn(opts = {}) {
   const inner = page(opts);
   const body = inner.slice(inner.indexOf('<body>') + 6, inner.lastIndexOf('</body>'));
+  // page() puts the `revenue: 'global'` route in the HEAD. This wrapper builds
+  // its own head, so carry that script across — dropping it turned a supported
+  // option into a page with the question quietly switched off.
+  const head = inner.slice(inner.indexOf('</title>') + 8, inner.indexOf('</head>'));
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>form in a Webflow column</title>
+${head}
 <style>
   *,*::before,*::after{box-sizing:border-box}
   body{margin:0}

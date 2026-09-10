@@ -32,7 +32,8 @@ it straight out of the repo — no clone, no build, no `config.local.json`. On a
 machine that has the repo:
 
 ```bash
-npm run copy      # builds, then puts webflow/embed.html on your clipboard
+npm run copy      # builds, then puts the embed on your clipboard
+                  # (if it ever needs two, it says so — `npm run copy:2` for part 2)
 ```
 
 1. Open the demo page in the Designer.

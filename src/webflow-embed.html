@@ -913,7 +913,7 @@
           bound to a CMS field instead of typed.
 
        4. This list, for pages you would rather manage in one place here.
-          Paths only, no domain, no trailing slash. Changing it means a
+          Paths only, no domain; trailing slash optional. Changing it means a
           rebuild and a re-paste of every page carrying the form, which is the
           reason it is last.
 
@@ -977,6 +977,8 @@
 
      Off means the field is REMOVED, not hidden. Default builds its payload by
      reading the DOM, and a hidden control is still a control. */
+  function trimSlash(p) { return String(p).replace(/\/+$/, '') || '/'; }
+
   function askRevenue() {
     if (window.USV_ASK_REVENUE === true) return true;
     if (/[?&]rev=1/.test(window.location.search)) return true;
@@ -994,9 +996,14 @@
         (host.getAttribute('data-upserve-revenue') || '').trim());
     }
 
-    /* Trailing slash trimmed here, so the list can be written either way. */
-    return CFG.REVENUE_PATHS.indexOf(
-      window.location.pathname.replace(/\/+$/, '') || '/') > -1;
+    /* Trailing slashes trimmed on BOTH sides, so an entry written either way
+       matches a visitor who arrived either way. Comparing the list raw is the
+       kind of bug that costs a rebuild and a re-paste to discover. */
+    var here = trimSlash(window.location.pathname);
+    for (var i = 0; i < CFG.REVENUE_PATHS.length; i++) {
+      if (trimSlash(CFG.REVENUE_PATHS[i]) === here) return true;
+    }
+    return false;
   }
 
   var ASK_REVENUE = askRevenue();
@@ -1528,7 +1535,12 @@
       else if (place.businessStatus === 'OPERATIONAL') preselectStatus('replacing_pos');
       newSessionToken();          // session closes once details are fetched
       say('Matched ' + (place.displayName || label));
-    }).catch(function () {
+    }).catch(function (err) {
+      /* Every place field we send downstream is lost here, and the visitor
+         sees nothing wrong — so say it somewhere findable. A single bad name
+         in FIELDS rejects the whole call, which is what this looks like when
+         Google renames something. */
+      if (window.console) console.warn('[usv] Places fetchFields failed', err);
       /* details failed but the prediction is still real */
       S.place    = { id: pp.placeId, displayName: label,
                      formattedAddress: String(pp.secondaryText || '') };
@@ -2045,8 +2057,16 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       /* Prospects only. Someone who backs up and switches to the customer
          branch must not leave a range behind for Default to read. */
       $('usv-f-rev').hidden = c;
-      if (c) { $('usv-rev').value = ''; clearErr($('usv-f-rev')); }
+      if (c) { $('usv-rev').value = ''; }
     }
+    /* Whichever question is now hidden drops its error with it. A hidden field
+       still marked invalid sits earlier in the DOM than the visible one that
+       actually failed, and focusFirstInvalid would hand focus to something
+       that cannot take it — leaving the visitor on the submit button with no
+       idea which field to fix. */
+    clearErr($('usv-f-status'));
+    clearErr($('usv-f-help'));
+    if (ASK_REVENUE) clearErr($('usv-f-rev'));
     txt($('usv-h2'), c ? 'What do you need help with?' : 'Where are you today?');
     paintSubmit();
   }

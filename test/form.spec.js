@@ -1177,7 +1177,10 @@ for (const width of SPILL_WIDTHS) {
         // The build minifies every class name, so the card is found by what it
         // looks like rather than what it is called: the nearest ancestor of the
         // name field that paints itself white and carries real padding.
-        let card = document.querySelector('[name="restaurant_name"]');
+        // Start ABOVE the field: an input paints itself --usv-paper too, and
+        // only its padding kept it from ending this walk on itself and making
+        // every assertion below vacuous.
+        let card = document.querySelector('[name="restaurant_name"]').parentElement;
         while (card && card !== document.body) {
           const c = getComputedStyle(card);
           if (c.backgroundColor === 'rgb(255, 255, 255)'
@@ -1272,7 +1275,8 @@ const SWITCHES = [
   ['a wrapper attribute',      { revenue: 'attribute' }],
   ['the attribute set to true', { revenue: 'true' }],
   ['a window global set in the head', { revenue: 'global' }],
-  ['a path in REVENUE_PATHS',  { paths: ['/book-a-demo'] }]
+  ['a path in REVENUE_PATHS',  { paths: ['/book-a-demo'] }],
+  ['a path written with a trailing slash', { paths: ['/book-a-demo/'] }]
 ];
 
 for (const [how, opts] of SWITCHES) {
@@ -1282,7 +1286,8 @@ for (const [how, opts] of SWITCHES) {
       // the path route is the only one that needs a real URL
       await page.route('**/*', (r) =>
         r.fulfill({ contentType: 'text/html', body: html }));
-      await page.goto('http://upserve.test' + opts.paths[0]);
+      await page.goto('http://upserve.test' +
+                      opts.paths[0].replace(/\/+$/, ''));
       await page.waitForFunction(() => !!document.querySelector('[role="combobox"]'));
       openedAt.set(page, Date.now());
       await page.waitForTimeout(150);
@@ -1427,7 +1432,8 @@ for (const width of [320, 360, 390]) {
       await expect(page.locator('select[name="annual_revenue"]')).toBeVisible();
 
       const spills = await page.evaluate(() => {
-        let card = document.querySelector('[name="first_name"]');
+        // Start above the field — see the note on the finder's sweep.
+        let card = document.querySelector('[name="first_name"]').parentElement;
         while (card && card !== document.body) {
           const c = getComputedStyle(card);
           if (c.backgroundColor === 'rgb(255, 255, 255)'
@@ -1523,4 +1529,39 @@ test('landing on the details step focuses the range, not past it', async ({ page
   await clickContinue(page);
   await page.waitForTimeout(200);
   expect(await page.evaluate(() => document.activeElement.name)).toBe('first_name');
+});
+
+/* Switching branches has to take the old branch's error with it. A hidden
+   field still marked invalid sits earlier in the DOM than the visible one that
+   actually failed, so focusFirstInvalid reaches for something that cannot take
+   focus and the visitor is left on the submit button with nothing highlighted. */
+test('the branch you left does not keep its error', async ({ page }) => {
+  await open(page, 'prospect');
+  await pickRestaurant(page, 'Just Wing');
+  await continueToStep2(page);
+
+  // Fail the prospect branch on purpose: no timeline picked.
+  await page.locator('input[name="restaurant_status"]:checked')
+    .evaluate((el) => { el.checked = false; }).catch(() => {});
+  await fillContact(page);
+  await submit(page);
+  expect(await submissions(page)).toHaveLength(0);
+
+  // Back out, come back as a customer, and fail that branch instead.
+  await page.getByRole('button', { name: /back/i }).first().click();
+  await page.getByRole('button', { name: /back/i }).first().click();
+  await page.locator('input[value="current_customer"]').check({ force: true });
+  await clickContinue(page);
+  await clickContinue(page);
+  await page.waitForTimeout(150);
+  await submit(page);
+
+  // The only field wearing an error is the one that is actually on screen.
+  const invalid = await page.evaluate(() =>
+    [...document.querySelectorAll('.is-invalid, [class*="invalid"]')]
+      .filter((e) => e.querySelector('input,select'))
+      .map((e) => ({ hidden: !e.offsetParent,
+                     field: e.querySelector('input,select').name })));
+  expect(invalid.filter((f) => f.hidden)).toEqual([]);
+  expect(invalid.some((f) => f.field === 'help_topic')).toBe(true);
 });
