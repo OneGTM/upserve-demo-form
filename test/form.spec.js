@@ -346,6 +346,38 @@ test('UTM and gclid ride along with the lead', async ({ page }) => {
   expect(fields.gclid).toBe('ABC123');
 });
 
+/* The channel is set per page on the wrapper, typed by hand in the Designer:
+   it arrives trimmed but otherwise exactly as typed, and a page without it
+   still sends the field so Default always has it to map. */
+for (const [how, opts, want] of [
+  ['a wrapper attribute sends its value', { leadSource: ' Automated Outbound ' },
+   'Automated Outbound'],
+  ['no attribute sends an empty lead_source', {}, ''],
+  ['it sits alongside the revenue switch', { revenue: 'attribute', leadSource: 'paid' },
+   'paid']
+]) {
+  test(`lead source: ${how}`, async ({ page }) => {
+    await open(page, 'prospect', buildPage(opts));
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    if (opts.revenue) await pickRevenue(page, '1m_plus');
+    await fillContact(page);
+    await submit(page);
+
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    const { fields, labels } = (await submissions(page))[0];
+    expect(fields.lead_source).toBe(want);
+    expect(labels.lead_source).toMatch(/lead source/i);
+  });
+}
+
+// Anything reading the form before submit — Default included — sees it too.
+test('lead source is in the form from load', async ({ page }) => {
+  await open(page, null, buildPage({ leadSource: 'paid' }));
+  await expect(page.locator('form input[type="hidden"][name="lead_source"]'))
+    .toHaveValue('paid');
+});
+
 /* ── funnel events ───────────────────────────────────────────────────────── */
 
 test('the funnel fires in order and survives a missing dataLayer', async ({ page }) => {
