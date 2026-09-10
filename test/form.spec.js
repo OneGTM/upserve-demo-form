@@ -1252,7 +1252,18 @@ test('no element in the shipped embed declares a fixed pixel width', () => {
  * into the Designer, and a build that renamed one of them would fail silently.
  */
 
-const REVENUE = 'select[name="annual_revenue"]';
+const REVENUE = 'input[name="annual_revenue"]';
+const pickRevenue = (page, v) =>
+  page.locator(`input[value="${v}"]`).check({ force: true });
+/* The three cards are one question. It is "shown" when its label is on screen;
+   the radios themselves are visually hidden inside their cards, as every other
+   card group on this form already is. */
+const revenueShown = (page) =>
+  expect(page.getByText(/annual revenue/i).first()).toBeVisible();
+/* On the customer branch the question is hidden, not removed — removal is what
+   a page that never asks gets, and those tests assert a count of zero. */
+const revenueHidden = (page) =>
+  expect(page.getByText(/annual revenue/i).first()).toBeHidden();
 
 test('a page that does not ask has no revenue question in it at all',
   async ({ page }) => {
@@ -1298,7 +1309,7 @@ for (const [how, opts] of SWITCHES) {
     }
     await pickRestaurant(page, 'Tautog');
     await continueToStep2(page);
-    await expect(page.locator(REVENUE)).toBeVisible();
+    await revenueShown(page);
   });
 }
 
@@ -1320,11 +1331,11 @@ test('a page that does ask puts it between the timeline and their name',
     await pickRestaurant(page, 'Tautog');
     await continueToStep2(page);
 
-    await expect(page.locator(REVENUE)).toBeVisible();
+    await revenueShown(page);
 
     // Order is the point: after the cards, before the name row.
     const order = await page.evaluate(() => {
-      const sel = document.querySelector('select[name="annual_revenue"]');
+      const sel = document.querySelector('input[name="annual_revenue"]');
       const status = document.querySelector('input[name="restaurant_status"]');
       const first = document.querySelector('input[name="first_name"]');
       const pos = (a, b) => a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING;
@@ -1338,14 +1349,18 @@ test('a customer is never asked their revenue', async ({ page }) => {
   await pickRestaurant(page, 'Tautog');
   await continueToStep2(page);
 
-  await expect(page.locator(REVENUE)).toBeHidden();
+  await revenueHidden(page);
 
   await page.locator('input[value="add_location"]').check({ force: true });
   await fillContact(page);
   await submit(page);
 
   await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
-  expect((await submissions(page))[0].fields.annual_revenue).toBe('');
+  /* Absent, not empty. An unchecked radio group contributes nothing, where the
+     select this replaced sent annual_revenue='' — and the form's own rule is
+     that an empty field reads as missing data while an absent one reads as not
+     applicable. This is the shape a customer's submission should have. */
+  expect((await submissions(page))[0].fields).not.toHaveProperty('annual_revenue');
 });
 
 test('a prospect cannot submit without a range', async ({ page }) => {
@@ -1359,7 +1374,7 @@ test('a prospect cannot submit without a range', async ({ page }) => {
   await expect(page.getByText(/pick the range that fits/i)).toBeVisible();
   expect(await submissions(page)).toHaveLength(0);
 
-  await page.selectOption(REVENUE, '1m_plus');
+  await pickRevenue(page, '1m_plus');
   await expect(page.getByText(/pick the range that fits/i)).toBeHidden();
   await submit(page);
   await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
@@ -1371,7 +1386,7 @@ test('the range reaches Default with its options and a readable label',
     await pickRestaurant(page, 'Tautog');
     await continueToStep2(page);
     await page.locator('input[value="replacing_pos"]').check({ force: true });
-    await page.selectOption(REVENUE, '300k_1m');
+    await pickRevenue(page, '300k_1m');
     await fillContact(page);
     await submit(page);
 
@@ -1383,7 +1398,7 @@ test('the range reaches Default with its options and a readable label',
     expect(labels.annual_revenue).not.toMatch(/annual_revenue/);
     // Default branches on the option set, so all three have to arrive.
     expect(optionsByName.annual_revenue)
-      .toEqual(['', 'under_300k', '300k_1m', '1m_plus']);
+      .toEqual(['under_300k', '300k_1m', '1m_plus']);
   });
 
 // Someone who answers as a prospect, backs up, and comes back as a customer
@@ -1392,7 +1407,7 @@ test('switching to the customer branch drops an answered range', async ({ page }
   await open(page, 'prospect', HTML_REV);
   await pickRestaurant(page, 'Tautog');
   await continueToStep2(page);
-  await page.selectOption(REVENUE, 'under_300k');
+  await pickRevenue(page, 'under_300k');
 
   await page.getByRole('button', { name: /back/i }).first().click();
   await page.getByRole('button', { name: /back/i }).first().click();
@@ -1401,13 +1416,14 @@ test('switching to the customer branch drops an answered range', async ({ page }
   await clickContinue(page);
   await expect(page.locator('input[name="first_name"]')).toBeVisible();
 
-  await expect(page.locator(REVENUE)).toBeHidden();
-  expect(await page.locator(REVENUE).inputValue()).toBe('');
+  await revenueHidden(page);
+  expect(await page.locator(REVENUE + ':checked').count()).toBe(0);
 });
 
 /* The spill sweep above stops at the finder, because that is where the widest
-   things used to be. The details step is now the longest one on the page and
-   the only one carrying a <select>, so it gets its own pass — in the same
+   things used to be. The details step is now the longest one on the page, and
+   its three-across range row is the only thing that lays out sideways, so it
+   gets its own pass — in the same
    Webflow flex column, on the narrowest phones anyone still ships. */
 for (const width of [320, 360, 390]) {
   test('nothing on the details step spills out of the card at ' + width + 'px',
@@ -1429,7 +1445,7 @@ for (const width of [320, 360, 390]) {
       await page.locator('button:visible').filter({ hasText: /continue/i }).first().click();
       await page.waitForTimeout(250);
 
-      await expect(page.locator('select[name="annual_revenue"]')).toBeVisible();
+      await revenueShown(page);
 
       const spills = await page.evaluate(() => {
         // Start above the field — see the note on the finder's sweep.
@@ -1463,29 +1479,41 @@ for (const width of [320, 360, 390]) {
     });
 }
 
-// The chevron is decoration painted over the control. If it ever swallowed the
-// tap, the field would look fine and simply refuse to open on a phone.
-test('tapping the chevron opens the range, it does not eat the tap',
-  async ({ page }) => {
-    await open(page, 'prospect', HTML_REV);
-    await pickRestaurant(page, 'Tautog');
-    await continueToStep2(page);
+// The whole card is the target, not the words in it. A thumb landing in the
+// padding has to count, and each card has to be big enough to hit.
+test('the whole range card is tappable, corner to corner', async ({ page }) => {
+  await open(page, 'prospect', HTML_REV);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
 
-    const box = await page.locator('select[name="annual_revenue"]').boundingBox();
-    const onChevron = await page.evaluate(([x, y]) => {
-      const hit = document.elementFromPoint(x, y);
-      return hit && hit.tagName === 'SELECT';
-    }, [box.x + box.width - 18, box.y + box.height / 2]);
-    expect(onChevron).toBe(true);
-  });
+  const card = page.locator('input[value="300k_1m"]').locator('..');
+  const box = await card.boundingBox();
+  expect(box.height).toBeGreaterThanOrEqual(44);   // Apple's floor
+
+  // top-left of the card, well clear of the text
+  await page.mouse.click(box.x + 4, box.y + 4);
+  await expect(page.locator('input[value="300k_1m"]')).toBeChecked();
+});
+
+// Picking one has to release the last, or two ranges reach Default at once.
+test('the ranges are one question, not three checkboxes', async ({ page }) => {
+  await open(page, 'prospect', HTML_REV);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+
+  await pickRevenue(page, 'under_300k');
+  await pickRevenue(page, '1m_plus');
+  expect(await page.locator(REVENUE + ':checked').count()).toBe(1);
+  await expect(page.locator('input[value="1m_plus"]')).toBeChecked();
+});
 
 // A phone shows the label row's two halves stacked; a laptop shows them on one
 // line. Both have to stay inside the card, and neither may clip the hint.
 test('the revenue label and its qualifier share a row on desktop and stack on a phone',
   async ({ page }) => {
     const rows = async () => page.evaluate(() => {
-      const sel = document.querySelector('select[name="annual_revenue"]');
-      const row = sel.closest('div').previousElementSibling;
+      const sel = document.querySelector('input[name="annual_revenue"]');
+      const row = sel.closest('fieldset').previousElementSibling;
       const kids = [...row.children].map((e) => e.getBoundingClientRect());
       return { sameLine: Math.abs(kids[0].top - kids[1].top) < 6,
                overflows: kids.some((r) => r.right > row.getBoundingClientRect().right + 1) };
@@ -1506,7 +1534,7 @@ test('the revenue label and its qualifier share a row on desktop and stack on a 
    the form picks up at the first empty field below it. With revenue on that is
    the range — landing on the name instead would scroll a required field off
    the top and save the discovery for the submit button. */
-test('landing on the details step focuses the range, not past it', async ({ page }) => {
+test('landing on the details step does not skip past the range', async ({ page }) => {
   await open(page, 'prospect', HTML_REV);
   const input = page.locator('[role="combobox"]');
   await input.click();
@@ -1518,13 +1546,16 @@ test('landing on the details step focuses the range, not past it', async ({ page
   // field to focus at all.
   await expect(page.locator('input[value="brand_new_opening"]')).toBeChecked();
   await clickContinue(page);
-  await expect(page.locator('select[name="annual_revenue"]')).toBeVisible();
+  await revenueShown(page);
   await page.waitForTimeout(200);
 
-  expect(await page.evaluate(() => document.activeElement.name)).toBe('annual_revenue');
+  // Nothing takes focus while the range is unanswered: focusing one of three
+  // radios would be a claim about which, and jumping to the name would scroll
+  // a required question off the top of a phone.
+  expect(await page.evaluate(() => document.activeElement.tagName)).toBe('BODY');
 
   // Answered, it hands focus on to the name the way it always did.
-  await page.selectOption('select[name="annual_revenue"]', 'under_300k');
+  await pickRevenue(page, 'under_300k');
   await page.getByRole('button', { name: /back/i }).first().click();
   await clickContinue(page);
   await page.waitForTimeout(200);

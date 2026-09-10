@@ -231,13 +231,26 @@ existing customer asking for support is not being qualified.
 | `annual_revenue` | Shown as |
 |---|---|
 | `under_300k` | Under $300k |
-| `300k_1m` | $300k to $1 million |
-| `1m_plus` | $1 million+ |
+| `300k_1m` | $300k to $1M |
+| `1m_plus` | $1M+ |
 
-It is a `<select>` rather than a fourth set of radio cards: three more cards
-push the last step past a phone screen, and picking a range is a lookup, not a
-decision worth that much room. The label carries "Approximate, per location" so
-a multi-location operator has an answer instead of a reason to abandon.
+Three radio cards laid out across, not a dropdown. The same card component as
+the timeline question above it, only compact — no dot, centred label, tighter
+padding — so it reads as three across on a laptop and one per line on a phone.
+
+A dropdown was the first cut, and the reason to move off it is that it hides
+the options. For a question this personal, seeing up front that the answer is
+one of three coarse buckets is most of what makes it answerable; "Select a
+range" gives no such assurance, and the native menu that opens is unstyleable
+system chrome that covers the fields beneath it. Three options is also well
+under the count where collapsing them earns the extra tap.
+
+The label carries "Approximate, per location" so a multi-location operator has
+an answer instead of a reason to abandon.
+
+Unchecked radios submit nothing at all, where the select sent
+`annual_revenue=''` — which suits the form's existing rule that an empty field
+reads as missing data and an absent one reads as not applicable.
 
 Switching to the customer branch after answering clears it, so a range can
 never ride along on a submission that never asked for one.

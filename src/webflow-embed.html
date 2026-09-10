@@ -189,13 +189,16 @@
 /* a basis, so the row wraps the shortcut onto its own line instead of the
    label silently shrinking into three */
 #usv-demo .usv-labelrow .usv-label{margin-bottom:7px;flex:1 1 200px;}
-#usv-demo label.usv-label{
+/* Not `label.usv-label`: the range's label names a fieldset, and a <label for>
+   cannot point at one — it is a span carrying aria-labelledby instead. Keying
+   on the element silently dropped the uppercase treatment there. */
+#usv-demo .usv-label{
   display:block;
   font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
   color:var(--usv-ink);
   margin:0 0 7px;
 }
-#usv-demo label.usv-label .usv-req{color:var(--usv-yellow);margin-left:3px;
+#usv-demo .usv-label .usv-req{color:var(--usv-yellow);margin-left:3px;
   -webkit-text-stroke:.4px var(--usv-ink-3);}
 
 #usv-demo .usv-input{
@@ -218,25 +221,6 @@
   border-color:var(--usv-ink);
   box-shadow:0 0 0 3px rgba(255,205,4,.42);
 }
-
-/* --- select --------------------------------------------------------------
-   A native <select>, not a card row. Three more cards would push the last
-   step past a phone screen, and a range is a lookup, not a decision worth
-   3x the vertical space. appearance:none strips the platform arrow so the
-   control matches every other input; the chevron below replaces it. The
-   wrapper owns the chevron because a <select> cannot have children that
-   render, and pointer-events:none on it keeps the whole box clickable. */
-#usv-demo .usv-sel{position:relative;display:block;}
-#usv-demo .usv-sel select{padding-right:40px;cursor:pointer;}
-/* Until something is picked the control reads as a placeholder, like every
-   other empty field on the step, rather than as an answered question. */
-#usv-demo .usv-sel select:invalid{color:#a8a29a;}
-#usv-demo .usv-sel option{color:var(--usv-ink);}
-#usv-demo .usv-sel-icon{
-  position:absolute;top:50%;right:14px;transform:translateY(-50%);
-  display:block;color:var(--usv-ink-3);pointer-events:none;
-}
-#usv-demo .usv-sel-icon svg{display:block;}
 
 /* The two things that ride in a label row: the New Restaurant shortcut, and
    the qualifier that keeps the revenue ranges answerable. Same yellow
@@ -367,6 +351,21 @@
 
 /* --- radio cards ---------------------------------------------------------- */
 #usv-demo .usv-cards{display:grid;gap:8px;margin:0;padding:0;border:0;}
+/* Three short answers, laid out across instead of down. The same radio cards
+   as every other question, only compact: no dot, centred label, tighter
+   padding. Three full cards would have added 250px to the longest step, which
+   is what a dropdown was hiding from — but a dropdown hides the options too,
+   and for a question this personal seeing that it is three coarse buckets is
+   most of what makes it answerable.
+
+   auto-fit with a 150px floor: three across where there is room, one per line
+   on a phone. It never lands on the 2+1 that a smaller floor would give. */
+#usv-demo .usv-cards--row{grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));}
+#usv-demo .usv-cards--row .usv-card-opt{padding:12px 10px;}
+#usv-demo .usv-cards--row .usv-card-hit{justify-content:center;gap:0;}
+#usv-demo .usv-cards--row .usv-mark{display:none;}
+#usv-demo .usv-cards--row .usv-card-t{font-size:14px;text-align:center;}
+
 #usv-demo .usv-card-opt{
   position:relative;
   border:1.5px solid var(--usv-line);border-radius:8px;
@@ -683,24 +682,13 @@
                control. See askRevenue(). -->
           <div class="usv-field" id="usv-f-rev" hidden>
             <div class="usv-labelrow">
-              <label class="usv-label" for="usv-rev">Annual revenue<span class="usv-req">*</span></label>
+              <span class="usv-label" id="usv-rev-l">Annual revenue<span class="usv-req">*</span></span>
               <span class="usv-hint" id="usv-rev-hint">Approximate, per location</span>
             </div>
-            <div class="usv-sel">
-              <select class="usv-input" id="usv-rev" name="annual_revenue"
-                      aria-describedby="usv-rev-hint" required>
-                <option value="">Select a range</option>
-                <option value="under_300k">Under $300k</option>
-                <option value="300k_1m">$300k to $1 million</option>
-                <option value="1m_plus">$1 million+</option>
-              </select>
-              <span class="usv-sel-icon">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M4 6.5 8 10.5 12 6.5" stroke="currentColor" stroke-width="1.8"
-                        stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
-            </div>
+            <fieldset class="usv-cards usv-cards--row" data-cards="revenue"
+                      aria-labelledby="usv-rev-l usv-rev-hint">
+              <legend class="usv-sr">Annual revenue</legend>
+            </fieldset>
             <p class="usv-err" id="usv-rev-err">Pick the range that fits.</p>
           </div>
 
@@ -1070,6 +1058,13 @@
       'brand_new_opening;We\u2019re opening a brand-new spot;Not open yet',
       'replacing_pos;We\u2019re replacing our current POS;Open on something else',
       'exploring;We\u2019re just exploring;No firm timeline'],
+
+    /* Values stay as they were when this was a dropdown; only the presentation
+       changed, so nothing downstream has to be remapped. */
+    revenue: ['annual_revenue',
+      'under_300k;Under $300k;',
+      '300k_1m;$300k to $1M;',
+      '1m_plus;$1M+;'],
 
     help: ['help_topic',
       'add_location;Add a new location;',
@@ -1904,7 +1899,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       } else clearErr($('usv-f-status'));
 
       if (ASK_REVENUE) {
-        if (!$('usv-rev').value) { setErr($('usv-f-rev')); ok = false; }
+        if (!revenuePicked()) { setErr($('usv-f-rev')); ok = false; }
         else clearErr($('usv-f-rev'));
       }
     }
@@ -2017,9 +2012,13 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
            name — skipping past it would scroll a required field off the top
            and leave them to discover it at submit. Focusing a select opens no
            picker and raises no keyboard, so this costs a phone nothing. */
-        var firstEmpty = !root.querySelector('input[name="restaurant_status"]:checked') ? null
-          : ASK_REVENUE && !$('usv-rev').value ? $('usv-rev')
-          : $('usv-first');
+        if (!root.querySelector('input[name="restaurant_status"]:checked')) return;
+        /* Radios, unlike the select this used to be, would pop the card into a
+           focus ring before they have chosen anything — and focusing one of
+           three is a claim about which. So when the range is unanswered we
+           focus nothing and let them see the whole question. */
+        if (ASK_REVENUE && !revenuePicked()) return;
+        var firstEmpty = $('usv-first');
         if (firstEmpty && !firstEmpty.value) firstEmpty.focus();
       }, 40);
     }
@@ -2040,8 +2039,18 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     });
   }
 
-  if (ASK_REVENUE) {
-    on($('usv-rev'), 'change', function () { clearErr($('usv-f-rev')); });
+  /* Same wiring the other two card groups get: repaint the selected state and
+     drop the error the moment they answer. */
+  var revInputs = root.querySelectorAll('input[name="annual_revenue"]');
+  for (var ri = 0; ri < revInputs.length; ri++) {
+    on(revInputs[ri], 'change', function () {
+      paintStatus();
+      clearErr($('usv-f-rev'));
+    });
+  }
+
+  function revenuePicked() {
+    return root.querySelector('input[name="annual_revenue"]:checked');
   }
 
   function isCustomer() { return S.visitor === 'current_customer'; }
@@ -2057,7 +2066,10 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       /* Prospects only. Someone who backs up and switches to the customer
          branch must not leave a range behind for Default to read. */
       $('usv-f-rev').hidden = c;
-      if (c) { $('usv-rev').value = ''; }
+      if (c) {
+        var picked = revenuePicked();
+        if (picked) { picked.checked = false; paintStatus(); }
+      }
     }
     /* Whichever question is now hidden drops its error with it. A hidden field
        still marked invalid sits earlier in the DOM than the visible one that
@@ -2520,7 +2532,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
       place_source  : S.match,
       place_verified: String(S.verified),
       routing_owner : CFG.ROUTING[(root.querySelector('input[name="restaurant_status"]:checked') || {}).value] || '',
-      annual_revenue: ASK_REVENUE ? $('usv-rev').value : ''
+      annual_revenue: ASK_REVENUE && revenuePicked() ? revenuePicked().value : ''
     });
     setBusy(true);
     registerDefaultCallbacks();
