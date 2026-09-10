@@ -3,12 +3,16 @@ config.local.json
 
 # Build output. Run `node build.js` to regenerate.
 #
-# webflow/embed.html is the exception: it IS committed, key and all, so the
+# Whatever is pasteable is the exception: it IS committed, key and all, so the
 # paste-ready file is in the repo and nobody has to build to install the form.
+# That means webflow/embed.html, and — the day the form outgrows Webflow's
+# 50,000-character cap and the build splits it — embed-part1/2.html instead.
+# Ignoring the parts would have emptied the repo of anything pasteable at
+# exactly the moment someone needed it, since the build deletes embed.html
+# when it splits.
+#
 # That is only safe because this repo is private — if it ever goes public
-# again, re-ignore it and rotate the key.
-webflow/embed-part1.html
-webflow/embed-part2.html
+# again, re-ignore all of them and rotate the key.
 preview.html
 prototype.html
 
