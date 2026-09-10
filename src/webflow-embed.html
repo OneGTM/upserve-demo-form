@@ -855,6 +855,7 @@
       email_domain_match   : 'Email matches restaurant website',
       phone_vs_place       : 'Phone vs restaurant line',
 
+      lead_source          : 'Lead source (channel)',
       utm_source           : 'UTM source',
       utm_medium           : 'UTM medium',
       utm_campaign         : 'UTM campaign',
@@ -999,6 +1000,19 @@
     var deadRev = document.getElementById('usv-f-rev');
     if (deadRev && deadRev.parentNode) deadRev.parentNode.removeChild(deadRev);
   }
+
+  /* The channel this page's traffic counts as — inbound, paid, outbound...
+     Decided by the page, like the revenue switch: a custom attribute on the
+     section or div wrapping the Embed element,
+       data-upserve-lead-source = paid
+     Nearest ancestor wins. Sent verbatim (trimmed), so type it exactly as the
+     CRM picklist spells it; no attribute sends ''. Resolved here at boot and
+     put in the form as a hidden input straight away (see the submit section),
+     so anything reading the form before submit sees it too. Unprefixed, so
+     the build leaves the name alone. */
+  var srcHost = root.closest('[data-upserve-lead-source]');
+  var LEAD_SOURCE = srcHost
+    ? (srcHost.getAttribute('data-upserve-lead-source') || '').trim() : '';
 
   function txt(el, s) { if (el) el.textContent = s; }
   function say(s) { txt($('usv-live'), s); }
@@ -2312,6 +2326,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
                    : v.place_business_status === 'CLOSED_TEMPORARILY' ? 'temporarily'
                    : '';
 
+    v.lead_source  = LEAD_SOURCE;
     v.utm_source   = ATTR.utm_source   || '';
     v.utm_medium   = ATTR.utm_medium   || '';
     v.utm_campaign = ATTR.utm_campaign || '';
@@ -2335,7 +2350,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
 
     /* Rebuild from scratch each time so a corrected value never leaves a
        stale twin behind for Default to pick up. */
-    var old = form.querySelectorAll('input[data-usv-hidden]'), i, el;
+    var old = form.querySelectorAll('input[data-usv-hidden]'), i;
     for (i = 0; i < old.length; i++) old[i].parentNode.removeChild(old[i]);
 
     /* Every field goes on every submission, empty or not.
@@ -2349,28 +2364,26 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
        The one exception is above: the branch question that was never asked has
        its name stripped, because there an empty value would misread as
        "answered with nothing" rather than "not applicable". */
-    var keys = Object.keys(v), key, val, label;
-    for (i = 0; i < keys.length; i++) {
-      key = keys[i];
-      val = v[key];
-      if (val == null) val = '';
+    var keys = Object.keys(v);
+    for (i = 0; i < keys.length; i++) addHidden(keys[i], v[keys[i]]);
+  }
 
-      el = document.createElement('input');
-      el.type = 'hidden';
-      el.name = key;
-      el.value = String(val);
-      el.setAttribute('data-usv-hidden', '1');
+  function addHidden(key, val) {
+    var el = document.createElement('input');
+    el.type = 'hidden';
+    el.name = key;
+    el.value = val == null ? '' : String(val);
+    el.setAttribute('data-usv-hidden', '1');
 
-      /* This is what stops Default listing the field as "place_postal_code".
-         aria-label is the only label source it can read off a hidden input,
-         and it sits third in its resolution order, ahead of the name fallback.
-         Anything without an entry in CFG.FIELDS still sends — it just shows
-         under its wire name. */
-      label = CFG.FIELDS[key];
-      if (label) el.setAttribute('aria-label', label);
+    /* This is what stops Default listing the field as "place_postal_code".
+       aria-label is the only label source it can read off a hidden input,
+       and it sits third in its resolution order, ahead of the name fallback.
+       Anything without an entry in CFG.FIELDS still sends — it just shows
+       under its wire name. */
+    var label = CFG.FIELDS[key];
+    if (label) el.setAttribute('aria-label', label);
 
-      form.appendChild(el);
-    }
+    form.appendChild(el);
   }
 
   /* =========================================================================
@@ -2380,6 +2393,9 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   var submitBtn = $('usv-submit');
   var submitTxt = $('usv-submit-txt');
   var formErr   = $('usv-formerr');
+
+  /* In the form from load; syncHiddenFields() rebuilds it with the rest. */
+  addHidden('lead_source', LEAD_SOURCE);
 
   function showFormError(msg) {
     formErr.textContent = msg;
