@@ -304,7 +304,7 @@ test('every field arrives under a readable label, never a raw slug',
 
     expect(labels.place_postal_code).toBe('Restaurant ZIP');
     expect(labels.place_hours).toBe('Opening hours');
-    expect(labels.routing_owner).toBe('Routing owner (AE or SDR)');
+    expect(labels.routing_owner).toBe('Routing owner (AE, SDR, AM or SUPPORT)');
   });
 
 test('the honeypot fields never reach Default', async ({ page }) => {
@@ -568,6 +568,25 @@ test('a prospect is asked where they are, not what they need', async ({ page }) 
   await expect(page.locator('[data-status="brand_new_opening"]')).toBeVisible();
   await expect(page.locator('[data-help="add_location"]')).not.toBeVisible();
 });
+
+/* The submit event is how GTM counts leads by owner. It has to carry the same
+   routing_owner Default gets, on the customer branch as well as the prospect one. */
+for (const [visitor, choice, owner] of [['prospect', 'replacing_pos', 'AE'],
+                                       ['current_customer', 'add_location', 'AM'],
+                                       ['current_customer', 'product_help', 'SUPPORT']]) {
+  test('the submit event carries routing_owner ' + owner + ' for ' + choice,
+    async ({ page }) => {
+      await walkTo(page, visitor, choice);
+      await submit(page);
+
+      await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+      const sent = (await submissions(page))[0].fields.routing_owner;
+      const ev = await page.evaluate(() =>
+        window.__events.find((e) => e.event === 'usv_form_submit'));
+      expect(sent).toBe(owner);
+      expect(ev.routing_owner).toBe(owner);
+    });
+}
 
 for (const [choice, owner] of [['add_location', 'AM'], ['add_products', 'AM']]) {
   test('a customer choosing ' + choice + ' routes to ' + owner, async ({ page }) => {
@@ -1092,8 +1111,11 @@ test('the name input looks like the other fields and leaves room for its icon',
     expect(s.name.borderW).toBe(s.first.borderW);
     expect(s.name.padL).toBe(s.first.padL);
     expect(s.name.padR).toBe('42px');
-    // the error red, not the resting grey
-    expect(s.name.border).not.toBe(s.first.border);
+    // The error red. Polled: border-color eases over .15s, and a read taken
+    // right after the click can still see the resting grey.
+    await expect.poll(() => page.evaluate(() =>
+      getComputedStyle(document.querySelector('[role="combobox"]')).borderTopColor))
+      .toBe('rgb(179, 38, 30)');
   });
 
 test('the form keeps the id Default knows it by', async ({ page }) => {

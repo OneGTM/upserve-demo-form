@@ -806,7 +806,7 @@
        here gets an explicit label. Edit the right-hand side freely; the left
        side is the wire name and should stay stable once Default has mapped it. */
     FIELDS : {
-      routing_owner        : 'Routing owner (AE or SDR)',
+      routing_owner        : 'Routing owner (AE, SDR, AM or SUPPORT)',
       place_source         : 'Place source (google, manual, not listed)',
       place_verified       : 'Place verified on Google',
 
@@ -2532,7 +2532,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     track('submit', {
       place_source  : S.match,
       place_verified: String(S.verified),
-      routing_owner : CFG.ROUTING[(root.querySelector('input[name="restaurant_status"]:checked') || {}).value] || '',
+      routing_owner : S.routing,          /* set by syncHiddenFields, both branches */
       annual_revenue: ASK_REVENUE && revenuePicked() ? revenuePicked().value : ''
     });
     setBusy(true);

@@ -507,7 +507,7 @@ Every field therefore carries an explicit label, all of them in one place:
 FIELDS : {
   place_postal_code : 'Restaurant ZIP',
   place_hours       : 'Opening hours',
-  routing_owner     : 'Routing owner (AE or SDR)',
+  routing_owner     : 'Routing owner (AE, SDR, AM or SUPPORT)',
   ...
 }
 ```
