@@ -70,11 +70,12 @@ stubbed, so it never touches a live service. For a manual look, open
 
 ## Editing the radio cards
 
-The eleven option cards are a table in the script, not markup:
+The thirteen option cards (who they are, restaurant status, help topic, revenue)
+are a table in the script, `CARDS`, not markup:
 
 ```js
 status: ['restaurant_status',
-  'brand_new_opening;We’re opening a brand-new spot;Not open yet, or opening soon',
+  'brand_new_opening;We’re opening a brand-new spot;Not open yet',
   ...
 ```
 
@@ -90,3 +91,15 @@ Default maps its own fields to the `name` attributes on this form. Renaming an
 input silently unmaps it on Default's side and the data stops flowing. Change a
 label (`CFG.FIELDS`) freely; change a `name` only deliberately, and re-map it in
 Default afterwards.
+
+The same goes for the names typed into Webflow: `data-upserve-revenue`,
+`data-upserve-lead-source`, `USV_ASK_REVENUE` and the form's `id="usv-form"`
+(which Default shows as the connected form ID). The build leaves all of them
+alone; renaming one in the source silently breaks every page that uses it.
+
+## Size
+
+`node build.js` prints how much of Webflow's 50,000 is left. It is tight, so:
+give a new icon only its geometry and `stroke-width` (the `#usv-demo svg` rule
+supplies colour, fill and line caps), and reuse an existing class before writing
+a near-copy of its rule.
