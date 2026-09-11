@@ -236,8 +236,8 @@ function shortenTokens(parts) {
 
   /* The <form> id is the one name that must not move. Default surfaces it as
      the "Connected HTML Form ID" and sends it as html_form_id, and the short
-     names are assigned in encounter order — so adding markup above the form
-     would silently rename it. Six extra characters buys a stable identifier. */
+     names are assigned by how often each is used — so almost any edit would
+     silently rename it. Six extra characters buys a stable identifier. */
   const KEEP = new Set(["usv-form"]);
 
   const seen = new Map();
@@ -250,11 +250,16 @@ function shortenTokens(parts) {
     return 'u' + s;
   };
 
+  /* The most-used names get the shortest tokens. Ties keep encounter order,
+     so the same source always builds the same output. */
+  const count = new Map();
   for (const text of parts) {
-    for (const m of text.matchAll(TOKEN)) {
-      if (KEEP.has(m[0])) { seen.set(m[0], m[0]); continue; }
-      if (!seen.has(m[0])) seen.set(m[0], (m[1] ? '--' : '') + nextName());
-    }
+    for (const m of text.matchAll(TOKEN)) count.set(m[0], (count.get(m[0]) || 0) + 1);
+  }
+  const byUse = [...count.keys()].sort((a, b) => count.get(b) - count.get(a));
+  for (const name of byUse) {
+    seen.set(name, KEEP.has(name) ? name
+                 : (name.startsWith('--') ? '--' : '') + nextName());
   }
 
   const map = Object.fromEntries(seen);
