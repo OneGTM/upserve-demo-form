@@ -73,7 +73,7 @@ Webflow caps a Code Embed at
 and **truncates silently** past it. The readable source is ~95,000, so
 `build.js` runs it through terser (compress + mangle), minifies the CSS,
 collapses the markup, and shortens the `usv-*` class names. Output is
-**46,461** — it fails loudly if an edit ever pushes it over.
+**48,397** — it fails loudly if an edit ever pushes it over.
 
 Terser is worth ~7,200 characters on its own; without it the build still
 works but falls back to comment-and-whitespace stripping and splits into two
@@ -665,11 +665,13 @@ the brand black (`#474747`, `#737373`) rather than off-palette hues.
 - **Mobile viewport.** The layout stacks below 480px, inputs are 16px so iOS
   doesn't zoom on focus, and tap targets measure ~51px. Verified via computed
   styles and the grid rule; worth one pass on a real handset before launch.
-- **Size.** 46,461 of 50,000 — about 3,500 spare. Past that the build splits
-  into two embeds automatically rather than truncating. This is the binding constraint now: a large new section will need
-  something trimmed first. `build.js` fails loudly rather than letting Webflow
-  truncate silently. A large new section may need something trimmed; `build.js` will
-  tell you rather than letting Webflow truncate silently.
+- **Size.** 48,397 of 50,000 — about 1,600 spare, and the binding constraint.
+  `node build.js` prints the current figure. Past the cap the build splits into
+  two embeds automatically rather than letting Webflow truncate silently. The
+  minifiers are already at their limit; what is left to trim is features. To
+  keep it small: icons take their colour, fill and line caps from the one
+  `#usv-demo svg` rule (give a new one just geometry and `stroke-width`), and
+  reuse an existing class before writing a near-copy of its rule.
 - **Minified class names.** Styling the form from Webflow's own CSS would need
   the shortened names in `embed.names.json`, which change between builds. Add
   styles to `src/webflow-embed.html` instead.
