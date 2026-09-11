@@ -57,7 +57,7 @@ straight into Webflow. The other build outputs (`preview.html`,
 ## Before you ship
 
 ```bash
-npm test          # builds, then 56 checks on desktop + mobile
+npm test          # builds, then runs the suite on desktop + mobile
 ```
 
 Webflow caps a Code Embed at 50,000 characters and **truncates silently** past
