@@ -1034,6 +1034,73 @@ test('a support-bound customer never causes the Maps SDK to load twice',
     expect(await page.evaluate(() => window.__placesLoads)).toBe(after);
   });
 
+/* ── size-driven shortcuts that must not change the look ─────────────────────
+ * Icons carry only geometry; one #usv-demo svg rule supplies colour, fill and
+ * caps. The name input shares .usv-input with the contact fields. Both save
+ * characters, and both fail silently if the shared rule stops reaching them. */
+
+test('icons draw as strokes in the text colour; the Google mark keeps its own',
+  async ({ page }) => {
+    await open(page);
+    const input = page.locator('[role="combobox"]');
+    await input.click();
+    await input.fill('Tau');
+    await page.locator('[role="option"]').first().waitFor({ state: 'visible' });
+
+    const icons = await page.evaluate(() =>
+      [...document.querySelectorAll('#usv-form svg, [role="listbox"] svg')]
+        .filter((s) => !s.querySelector('text'))
+        .map((s) => {
+          const el = s.querySelector('path, circle');
+          const cs = getComputedStyle(el);
+          return { fill: cs.fill, stroke: cs.stroke, color: getComputedStyle(s).color,
+                   cap: cs.strokeLinecap, width: cs.strokeWidth };
+        }));
+    expect(icons.length).toBeGreaterThanOrEqual(4);
+    for (const i of icons) {
+      expect(i.fill).toBe('none');
+      expect(i.stroke).toBe(i.color);
+      expect(i.cap).toBe('round');
+      expect(parseFloat(i.width)).toBeGreaterThan(1);
+    }
+
+    const mark = await page.evaluate(() => {
+      const t = document.querySelector('[role="listbox"] svg text');
+      const spans = [...t.querySelectorAll('tspan')];
+      return { stroke: getComputedStyle(t).stroke,
+               fills: spans.map((s) => getComputedStyle(s).fill) };
+    });
+    expect(mark.stroke).toBe('none');
+    expect(mark.fills).toHaveLength(6);
+    for (const f of mark.fills) expect(f).not.toBe('none');
+  });
+
+test('the name input looks like the other fields and leaves room for its icon',
+  async ({ page }) => {
+    await open(page);
+    await clickContinue(page);   // empty: the name field goes invalid
+
+    const s = await page.evaluate(() => {
+      const pick = (el) => { const c = getComputedStyle(el);
+        return { font: c.fontSize, radius: c.borderRadius, borderW: c.borderTopWidth,
+                 padL: c.paddingLeft, padR: c.paddingRight, border: c.borderTopColor }; };
+      return { name: pick(document.querySelector('[role="combobox"]')),
+               first: pick(document.querySelector('input[name="first_name"]')) };
+    });
+    expect(s.name.font).toBe('16px');
+    expect(s.name.radius).toBe(s.first.radius);
+    expect(s.name.borderW).toBe(s.first.borderW);
+    expect(s.name.padL).toBe(s.first.padL);
+    expect(s.name.padR).toBe('42px');
+    // the error red, not the resting grey
+    expect(s.name.border).not.toBe(s.first.border);
+  });
+
+test('the form keeps the id Default knows it by', async ({ page }) => {
+  await open(page, null);
+  await expect(page.locator('form#usv-form')).toHaveCount(1);
+});
+
 /* ── the suggestion list must never be cut off ───────────────────────────── */
 
 test('the card does not clip its own dropdown', async ({ page }) => {
