@@ -231,14 +231,14 @@ function minifyHtml(html) {
  * digit appended at runtime — a letters-only alphabet means those runtime ids
  * can never collide with a name assigned here.
  */
-function shortenTokens(parts) {
+function shortenTokens(parts, keep = ['usv-form']) {
   const TOKEN = /(--)?usv-[a-z0-9-]*/g;
 
   /* The <form> id is the one name that must not move. Default surfaces it as
      the "Connected HTML Form ID" and sends it as html_form_id, and the short
      names are assigned by how often each is used — so almost any edit would
      silently rename it. Six extra characters buys a stable identifier. */
-  const KEEP = new Set(["usv-form"]);
+  const KEEP = new Set(keep);
 
   const seen = new Map();
   let counter = 0;
@@ -670,6 +670,33 @@ function buildPrototypeStub() {
 </script>`;
 }
 
+/* --- partner form ----------------------------------------------------------
+   A second, smaller embed for the partner page. Same pipeline, its own files.
+   No key, no Places, no split: it sits far under the cap. */
+const PARTNER_SRC = path.join(ROOT, 'src', 'partner-embed.html');
+const partnerSource = fs.readFileSync(PARTNER_SRC, 'utf8');
+const pOpen = partnerSource.lastIndexOf('<script>');
+const pClose = partnerSource.lastIndexOf('</script>');
+const pHead = partnerSource.slice(0, pOpen).trimEnd();
+const pStyle = pHead.match(/<style>([\s\S]*?)<\/style>/);
+const pShort = shortenTokens([
+  minifyHtml(pHead.replace(/<style>[\s\S]*?<\/style>/, '__STYLE__')),
+  minifyCss(pStyle ? pStyle[1] : ''),
+  escapeNonAscii(minifyJs(partnerSource.slice(pOpen + '<script>'.length, pClose)))
+], ['usv-partner-form']);
+const partnerEmbed =
+  '<!-- Upserve partner form. Generated: edit src/partner-embed.html, not this. -->\n' +
+  pShort.parts[0].replace('__STYLE__', '<style>' + pShort.parts[1] + '</style>') +
+  '\n<script>' + pShort.parts[2] + '</script>\n';
+const partnerOut = path.join(OUT_DIR, 'partner-embed.html');
+fs.writeFileSync(partnerOut, partnerEmbed);
+fs.writeFileSync(path.join(OUT_DIR, 'partner-embed.names.json'),
+  JSON.stringify(pShort.map, null, 2) + '\n');
+fs.writeFileSync(path.join(ROOT, 'preview-partner.html'),
+  preview.replace(source, partnerSource).replace('Demo Request Form', 'Partner Form')
+    .replace(/<p class="pv-note">[\s\S]*?<\/p>/, ''));
+const partnerOk = partnerEmbed.length <= EMBED_LIMIT;
+
 /* --------------------------------------------------------------------------- */
 console.log('\nBuilt from src/webflow-embed.html (' + source.length + ' readable chars)\n');
 
@@ -695,11 +722,12 @@ if (global.__usvSplit) {
 if (process.argv.includes('--copy')) {
   const want = process.argv.includes('2') ? 1 : 0;
   const files = global.__usvSplit ? [p1, p2] : [whole];
-  const pick = files[Math.min(want, files.length - 1)];
+  const pick = process.argv.includes('--partner') ? partnerOut
+             : files[Math.min(want, files.length - 1)];
   try {
     execFileSync('pbcopy', { input: fs.readFileSync(pick) });
     console.log('  copied ' + path.relative(ROOT, pick) + ' to the clipboard.');
-    if (files.length > 1 && want === 0) {
+    if (pick !== partnerOut && files.length > 1 && want === 0) {
       console.log('  This build needs TWO embeds. Paste this one, then run ' +
                   '`npm run copy:2` for part 2 and paste it directly below.');
     }
@@ -709,6 +737,8 @@ if (process.argv.includes('--copy')) {
   }
 }
 
+console.log('  ' + (partnerOk ? 'ok  ' : 'OVER') + '  webflow/partner-embed.html'.padEnd(30) +
+            String(partnerEmbed.length).padStart(6) + ' / ' + EMBED_LIMIT + '  (partner page)');
 console.log('  ok    preview.html'.padEnd(32) + String(preview.length).padStart(6) + ' chars');
 console.log('  ok    prototype.html\n');
-process.exit(ok ? 0 : 1);
+process.exit(ok && partnerOk ? 0 : 1);

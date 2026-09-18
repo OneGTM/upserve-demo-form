@@ -1,0 +1,648 @@
+<!--
+  ============================================================================
+  UPSERVE — PARTNER FORM  (Webflow custom-code embed)
+  ----------------------------------------------------------------------------
+  Readable source. Run `node build.js` and paste webflow/partner-embed.html
+  (or `npm run copy:partner`), never this file.
+
+  One step, seven questions: name, business, email, phone, whether they have
+  worked with Upserve before, and what kind of partner they are. Same look as
+  the demo form (tokens, cards, button) so the two sit on the site as a pair.
+
+  Posts through Default's SDK exactly like the demo form: the SDK reads the
+  named inputs off the DOM at submit, so the `name` attributes are the
+  contract. Set CFG.FORM_ID to the partner form's id in Default before launch.
+
+  Anti-spam: honeypot + submit-speed floor. Traps show the normal thank-you
+  and never reach Default.
+  ============================================================================
+-->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+/* Brand tokens and component rules are the demo form's, scoped to this root.
+   Keep the two in step: a change to a shared rule belongs in both files. */
+#usv-partner{
+  --usv-yellow:#ffcd04;
+  --usv-yellow-soft:#f5e1a4;
+  --usv-black:#000000;
+  --usv-ink:#000000;
+  --usv-ink-2:#474747;
+  --usv-ink-3:#737373;
+  --usv-line:#ddd8d1;
+  --usv-line-2:#efebe4;
+  --usv-paper:#ffffff;
+  --usv-error:#b3261e;
+
+  --usv-serif:"Fraunces",ui-serif,Georgia,"Times New Roman",serif;
+  --usv-sans:"Lato",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+
+  --usv-r:10px;
+  --usv-shadow:0 1px 2px rgba(20,19,18,.04),0 12px 32px -12px rgba(20,19,18,.18);
+
+  position:relative;
+  font-family:var(--usv-sans);
+  color:var(--usv-ink);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  box-sizing:border-box;
+  /* Webflow's Embed wrapper is a flex container; without min-width:0 the form
+     floors at its min-content width and pushes the page sideways. */
+  max-width:100%;
+  min-width:0;
+}
+#usv-partner *,#usv-partner *::before,#usv-partner *::after{box-sizing:border-box;}
+#usv-partner svg{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;}
+
+/* --- card ----------------------------------------------------------------- */
+#usv-partner .usv-stage{
+  width:100%;min-width:0;display:flex;justify-content:center;
+  padding:clamp(6px,1.4vw,18px) clamp(12px,3vw,20px) clamp(16px,3vw,28px);
+}
+#usv-partner .usv-card{
+  width:100%;max-width:780px;min-width:0;
+  background:var(--usv-paper);
+  border-radius:var(--usv-r);
+  box-shadow:var(--usv-shadow);
+  padding:clamp(24px,3.4vw,32px) clamp(22px,3.4vw,36px) clamp(24px,3.4vw,34px);
+  position:relative;
+}
+#usv-partner .usv-card::before{
+  content:"";position:absolute;top:0;left:0;right:0;height:4px;
+  background:var(--usv-yellow);border-radius:var(--usv-r) var(--usv-r) 0 0;
+}
+
+/* --- type ----------------------------------------------------------------- */
+#usv-partner .usv-eyebrow{
+  font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--usv-ink-3);margin:0 0 9px;
+}
+#usv-partner h2.usv-h{
+  font-family:var(--usv-serif);font-weight:400;
+  font-size:clamp(24px,3.1vw,30px);line-height:1.14;letter-spacing:-.012em;
+  color:var(--usv-ink);margin:0 0 14px;
+}
+#usv-partner h2.usv-h em{font-style:italic;font-weight:400;}
+#usv-partner .usv-sub{font-size:15px;line-height:1.55;color:var(--usv-ink-2);margin:-6px 0 22px;}
+
+/* --- fields --------------------------------------------------------------- */
+#usv-partner .usv-field{margin:0 0 16px;position:relative;}
+/* Stacks on the space the row has, not the viewport, so a narrow Webflow
+   column on a wide screen still gets one column. */
+#usv-partner .usv-row{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(178px,100%),1fr));
+  column-gap:14px;row-gap:0;align-items:start;
+}
+#usv-partner .usv-row2{grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));}
+#usv-partner .usv-label{
+  display:block;
+  font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--usv-ink);margin:0 0 7px;
+}
+#usv-partner .usv-label .usv-req{color:var(--usv-yellow);margin-left:3px;
+  -webkit-text-stroke:.4px var(--usv-ink-3);}
+#usv-partner .usv-input{
+  width:100%;
+  font-family:var(--usv-sans);
+  font-size:16px;           /* 16px = no iOS zoom-on-focus */
+  line-height:1.4;color:var(--usv-ink);
+  background:var(--usv-paper);
+  border:1.5px solid var(--usv-line);border-radius:8px;
+  padding:13px 14px;outline:none;
+  appearance:none;-webkit-appearance:none;
+  transition:border-color .15s ease,box-shadow .15s ease;
+}
+#usv-partner .usv-input::placeholder{color:#a8a29a;}
+#usv-partner .usv-input:hover{border-color:#c3bcb2;}
+#usv-partner .usv-input:focus{border-color:var(--usv-ink);box-shadow:0 0 0 3px rgba(255,205,4,.42);}
+#usv-partner .usv-err{
+  display:none;font-size:13px;line-height:1.45;color:var(--usv-error);font-weight:700;margin:7px 0 0;
+}
+#usv-partner .usv-field.is-invalid .usv-err{display:block;}
+#usv-partner .usv-field.is-invalid .usv-input{border-color:var(--usv-error);}
+#usv-partner .usv-field.is-invalid .usv-card-opt{border-color:var(--usv-error);}
+
+/* --- radio cards ---------------------------------------------------------- */
+#usv-partner .usv-cards{display:grid;gap:8px;margin:0;padding:0;border:0;min-width:0;}
+/* Three across where there is room, one per line on a phone. */
+#usv-partner .usv-cards--row{grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));}
+/* Yes / No: two short answers, compact, no dot. */
+#usv-partner .usv-cards--pill .usv-card-opt{padding:12px 10px;}
+#usv-partner .usv-cards--pill .usv-card-hit{justify-content:center;gap:0;}
+#usv-partner .usv-cards--pill .usv-mark{display:none;}
+#usv-partner .usv-cards--pill .usv-card-t{font-size:14px;text-align:center;}
+#usv-partner .usv-cards--pill{grid-template-columns:repeat(2,minmax(0,1fr));max-width:340px;}
+/* Partner type carries descriptions, so a wider floor: three across on a
+   laptop, straight to one per line on a phone, never 2+1. */
+#usv-partner .usv-cards--type{grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));}
+#usv-partner .usv-nw{white-space:nowrap;}
+
+#usv-partner .usv-card-opt{
+  position:relative;
+  border:1.5px solid var(--usv-line);border-radius:8px;
+  padding:13px 15px;cursor:pointer;background:var(--usv-paper);
+  transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease;
+}
+#usv-partner .usv-card-hit{display:flex;align-items:flex-start;gap:12px;cursor:pointer;}
+/* the label's hit area covers the whole card */
+#usv-partner .usv-card-hit::after{content:"";position:absolute;inset:0;border-radius:8px;}
+#usv-partner .usv-card-opt:hover{border-color:#c3bcb2;background:#fffdf7;}
+#usv-partner .usv-card-opt input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none;}
+#usv-partner .usv-mark{
+  flex:0 0 19px;width:19px;height:19px;border-radius:50%;
+  border:1.5px solid var(--usv-line);background:var(--usv-paper);
+  margin-top:1px;position:relative;
+  transition:border-color .15s ease,background-color .15s ease;
+}
+#usv-partner .usv-card-opt.is-on{
+  border-color:var(--usv-ink);background:#fffdf5;box-shadow:inset 0 0 0 1px var(--usv-ink);
+}
+#usv-partner .usv-card-opt.is-on .usv-mark{border-color:var(--usv-ink);background:var(--usv-yellow);}
+#usv-partner .usv-card-opt.is-on .usv-mark::after{
+  content:"";position:absolute;inset:4px;border-radius:50%;background:var(--usv-ink);
+}
+#usv-partner .usv-card-opt:focus-within{box-shadow:0 0 0 3px rgba(255,205,4,.42);border-color:var(--usv-ink);}
+#usv-partner .usv-card-t{font-weight:700;font-size:15px;line-height:1.35;color:var(--usv-ink);}
+#usv-partner .usv-card-d{
+  display:block;font-size:13px;line-height:1.4;color:var(--usv-ink-3);
+  margin-top:2px;padding-left:31px;pointer-events:none;
+}
+
+/* --- button --------------------------------------------------------------- */
+#usv-partner .usv-actions{margin-top:22px;}
+#usv-partner .usv-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;width:100%;
+  font-family:var(--usv-sans);font-size:16px;font-weight:700;letter-spacing:.01em;
+  color:var(--usv-black);background:var(--usv-yellow);
+  border:1.5px solid var(--usv-black);border-radius:8px;
+  padding:15px 22px;cursor:pointer;
+  transition:transform .12s ease,filter .15s ease,box-shadow .15s ease;
+  box-shadow:0 2px 0 0 var(--usv-black);
+}
+#usv-partner .usv-btn:hover{filter:brightness(.96);}
+#usv-partner .usv-btn:active{transform:translateY(2px);box-shadow:0 0 0 0 var(--usv-black);}
+#usv-partner .usv-btn:focus-visible{outline:3px solid rgba(20,19,18,.4);outline-offset:2px;}
+#usv-partner .usv-btn[disabled]{opacity:.55;cursor:not-allowed;box-shadow:none;transform:none;}
+#usv-partner .usv-btn-spin{
+  width:15px;height:15px;border-radius:50%;
+  border:2px solid rgba(0,0,0,.25);border-top-color:var(--usv-black);
+  animation:usv-spin .7s linear infinite;display:none;
+}
+#usv-partner .usv-btn.is-busy .usv-btn-spin{display:block;}
+#usv-partner .usv-btn.is-busy .usv-btn-arrow{display:none;}
+@keyframes usv-spin{to{transform:rotate(360deg);}}
+
+/* --- form error, panels, success ------------------------------------------ */
+#usv-partner .usv-formerr{
+  display:none;margin:0 0 18px;padding:12px 14px;
+  border:1px solid rgba(179,38,30,.28);border-left:3px solid var(--usv-error);
+  border-radius:8px;background:#fdf5f4;font-size:14px;line-height:1.5;color:#7d1b15;
+}
+#usv-partner .usv-formerr.is-on{display:block;}
+#usv-partner .usv-panel{display:none;}
+#usv-partner .usv-panel.is-on{display:block;animation:usv-in .32s cubic-bezier(.22,.8,.3,1) both;}
+@keyframes usv-in{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:none;}}
+#usv-partner .usv-done-mark{
+  width:46px;height:46px;border-radius:50%;
+  background:var(--usv-yellow);color:var(--usv-black);
+  display:flex;align-items:center;justify-content:center;margin:0 0 18px;
+}
+#usv-partner .usv-done p{font-size:15.5px;line-height:1.6;color:var(--usv-ink-2);margin:0 0 10px;}
+
+/* --- honeypot + screen-reader text ---------------------------------------- */
+#usv-partner .usv-hp{
+  position:absolute !important;left:-9999px !important;top:auto !important;
+  width:1px !important;height:1px !important;overflow:hidden !important;
+  opacity:0 !important;pointer-events:none !important;
+}
+#usv-partner .usv-sr{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+}
+
+@media (prefers-reduced-motion:reduce){
+  #usv-partner *,#usv-partner *::before,#usv-partner *::after{
+    animation-duration:.001ms !important;transition-duration:.001ms !important;
+  }
+}
+</style>
+
+
+<div id="usv-partner">
+  <div class="usv-stage">
+    <div class="usv-card">
+
+      <div class="usv-formerr" id="usv-formerr" role="alert"></div>
+
+      <form id="usv-partner-form" class="usv-panel is-on" novalidate autocomplete="on">
+        <!-- honeypot. Humans never see or focus these. -->
+        <div class="usv-hp" aria-hidden="true">
+          <label for="usv-hp-url">Company website</label>
+          <input type="text" id="usv-hp-url" name="company_website_confirm" tabindex="-1" autocomplete="off">
+          <label for="usv-hp-t">Time on page</label>
+          <input type="text" id="usv-hp-t" name="form_render_time" tabindex="-1" autocomplete="off">
+        </div>
+
+        <p class="usv-eyebrow">Partner program</p>
+        <h2 class="usv-h" id="usv-h">Let&rsquo;s build <em>together</em>.</h2>
+        <p class="usv-sub">Tell us a little about you and our partnerships team will reach out.</p>
+
+        <div class="usv-row">
+          <div class="usv-field" id="usv-f-first">
+            <label class="usv-label" for="usv-first">First name<span class="usv-req">*</span></label>
+            <input class="usv-input" id="usv-first" name="first_name" type="text"
+                   autocomplete="given-name" placeholder="Alex">
+            <p class="usv-err">First name is required.</p>
+          </div>
+          <div class="usv-field" id="usv-f-last">
+            <label class="usv-label" for="usv-last">Last name<span class="usv-req">*</span></label>
+            <input class="usv-input" id="usv-last" name="last_name" type="text"
+                   autocomplete="family-name" placeholder="Rivera">
+            <p class="usv-err">Last name is required.</p>
+          </div>
+        </div>
+
+        <div class="usv-field" id="usv-f-biz">
+          <label class="usv-label" for="usv-biz">Business name<span class="usv-req">*</span></label>
+          <input class="usv-input" id="usv-biz" name="business_name" type="text"
+                 autocomplete="organization" autocapitalize="words" placeholder="Acme Payments">
+          <p class="usv-err">Business name is required.</p>
+        </div>
+
+        <div class="usv-row usv-row2">
+          <div class="usv-field" id="usv-f-email">
+            <label class="usv-label" for="usv-email">Email address<span class="usv-req">*</span></label>
+            <input class="usv-input" id="usv-email" name="email" type="email"
+                   autocomplete="email" inputmode="email" spellcheck="false"
+                   autocapitalize="off" placeholder="you@company.com">
+            <p class="usv-err">Enter an email we can actually reach.</p>
+          </div>
+          <div class="usv-field" id="usv-f-phone">
+            <label class="usv-label" for="usv-phone">Phone number<span class="usv-req">*</span></label>
+            <input class="usv-input" id="usv-phone" name="phone" type="tel"
+                   autocomplete="tel" inputmode="tel" placeholder="(305) 555-0142">
+            <p class="usv-err">Enter a valid phone number.</p>
+          </div>
+        </div>
+
+        <div class="usv-field" id="usv-f-past">
+          <span class="usv-label" id="usv-past-l">Have you worked with Upserve in the <span class="usv-nw">past?<span class="usv-req">*</span></span></span>
+          <fieldset class="usv-cards usv-cards--row usv-cards--pill" data-cards="past" aria-labelledby="usv-past-l">
+            <legend class="usv-sr">Worked with Upserve in the past</legend>
+          </fieldset>
+          <p class="usv-err">Pick one.</p>
+        </div>
+
+        <div class="usv-field" id="usv-f-type">
+          <span class="usv-label" id="usv-type-l">Partner type<span class="usv-req">*</span></span>
+          <fieldset class="usv-cards usv-cards--type" data-cards="type" aria-labelledby="usv-type-l">
+            <legend class="usv-sr">Partner type</legend>
+          </fieldset>
+          <p class="usv-err">Pick the one that fits.</p>
+        </div>
+
+        <div class="usv-actions">
+          <button type="submit" class="usv-btn" id="usv-submit">
+            <span class="usv-btn-spin" aria-hidden="true"></span>
+            <span id="usv-submit-txt">Get started</span>
+            <svg class="usv-btn-arrow" width="15" height="13" viewBox="0 0 15 13" aria-hidden="true">
+              <path d="M1 6.5h12M8.5 2l4.5 4.5L8.5 11" stroke-width="1.9"/>
+            </svg>
+          </button>
+        </div>
+      </form>
+
+      <section class="usv-panel usv-done" id="usv-done" aria-live="polite" hidden>
+        <div class="usv-done-mark" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 22 22"><path d="M4.5 11.4 9 15.9 17.5 6.5" stroke-width="2.6"/></svg>
+        </div>
+        <h2 class="usv-h">Thanks, <em id="usv-done-name">partner</em>.</h2>
+        <p>We&rsquo;ve got your details. Someone from our partnerships team will be in touch soon.</p>
+      </section>
+
+      <p class="usv-sr" id="usv-live" role="status" aria-live="polite"></p>
+    </div>
+  </div>
+</div>
+
+
+<script>
+(function () {
+  'use strict';
+
+  var CFG = {
+    /* Default form this posts to. Stamped on the form as data-default-form-id,
+       which the SDK treats as authoritative over the page-level snippet.
+       null = not stamped, and the page snippet's form id is used instead. */
+    FORM_ID : null,
+    TEAM_ID : 743,
+
+    MIN_SUBMIT_SECONDS : 3,
+
+    /* Labels Default shows for the hidden fields (it reads aria-label). */
+    FIELDS : {
+      form_type    : 'Form type',
+      phone_e164   : 'Phone (E.164)',
+      email_domain : 'Email domain',
+      lead_source  : 'Lead source (channel)',
+      utm_source   : 'UTM source',
+      utm_medium   : 'UTM medium',
+      utm_campaign : 'UTM campaign',
+      utm_term     : 'UTM term',
+      utm_content  : 'UTM content',
+      gclid        : 'Google Click ID',
+      landing_page : 'Landing page',
+      referrer     : 'Referrer'
+    }
+  };
+
+  /* Cards, as in the demo form:  value ; title ; description
+     Values are the wire contract with Default. Titles can change freely. */
+  var CARDS = {
+    past: ['worked_with_upserve',
+      'yes;Yes;',
+      'no;No;'],
+    type: ['partner_type',
+      'tech_partner;Tech partner;Your product integrates with Upserve',
+      'sales_partner;Sales partner;You refer or resell to restaurants',
+      'both;Both;You build and you sell']
+  };
+
+  var $  = function (id) { return document.getElementById(id); };
+  var on = function (el, ev, fn) { if (el) el.addEventListener(ev, fn); };
+  var root = $('usv-partner');
+  if (!root || root.dataset.usvBooted === '1') return;
+  root.dataset.usvBooted = '1';
+
+  var form = $('usv-partner-form');
+  var S = { renderedAt: Date.now(), submitting: false, submitted: false, cbRegistered: false };
+
+  function txt(el, s) { if (el) el.textContent = s; }
+  function say(s) { txt($('usv-live'), s); }
+
+  /* dataLayer events, same shape as the demo form under a partner_ prefix.
+     Wrapped: analytics must never break a submission. */
+  function track(name, extra) {
+    try {
+      var dl = window.dataLayer || (window.dataLayer = []);
+      var p = { event: 'usv_partner_' + name }, k;
+      if (extra) { for (k in extra) if (extra[k] !== '' && extra[k] != null) p[k] = extra[k]; }
+      dl.push(p);
+    } catch (e) { /* no-op */ }
+  }
+
+  (function buildCards() {
+    var g, box, rows, i, p, id, out;
+    for (g in CARDS) {
+      box = root.querySelector('fieldset[data-cards="' + g + '"]');
+      if (!box) continue;
+      rows = CARDS[g];
+      out = '';
+      for (i = 1; i < rows.length; i++) {
+        p = rows[i].split(';');
+        id = 'usv-c' + g + i;
+        out += '<div class="usv-card-opt">' +
+          '<input type="radio" id="' + id + '" name="' + rows[0] + '" value="' + p[0] +
+          (p[2] ? '" aria-describedby="' + id + 'd">' : '">') +
+          '<label class="usv-card-hit" for="' + id + '">' +
+          '<span class="usv-mark" aria-hidden="true"></span>' +
+          '<span class="usv-card-t">' + p[1] + '</span></label>' +
+          (p[2] ? '<span class="usv-card-d" id="' + id + 'd">' + p[2] + '</span>' : '') +
+          '</div>';
+      }
+      box.insertAdjacentHTML('beforeend', out);
+    }
+  }());
+
+  /* Paint the selected card, and clear the group's error once answered. */
+  on(form, 'change', function (e) {
+    var t = e.target;
+    if (t.type !== 'radio') return;
+    var all = root.querySelectorAll('input[name="' + t.name + '"]'), i;
+    for (i = 0; i < all.length; i++) all[i].parentNode.classList.toggle('is-on', all[i].checked);
+    clearErr(t.closest('.usv-field'));
+  });
+
+  /* Clear a text field's error as soon as they start fixing it. */
+  on(form, 'input', function (e) {
+    if (e.target.classList.contains('usv-input')) clearErr(e.target.closest('.usv-field'));
+  });
+
+  /* ---- attribution: first touch persisted, shared with the demo form ------ */
+  var UTM_KEYS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'];
+  function readAttribution() {
+    var out = {}, i, k, saved = {};
+    var qs = new URLSearchParams(window.location.search);
+    try { saved = JSON.parse(window.localStorage.getItem('usv_attr') || '{}'); } catch (e) { /* no-op */ }
+    for (i = 0; i < UTM_KEYS.length; i++) {
+      k = UTM_KEYS[i];
+      out[k] = qs.get(k) || saved[k] || '';
+    }
+    out.gclid = qs.get('gclid') || qs.get('wbraid') || qs.get('gbraid') || saved.gclid || '';
+    out.landing_page = saved.landing_page || window.location.href;
+    out.referrer = saved.referrer || document.referrer || '';
+    return out;
+  }
+
+  var srcHost = root.closest('[data-upserve-lead-source]');
+  var LEAD_SOURCE = srcHost ? (srcHost.getAttribute('data-upserve-lead-source') || '').trim() : '';
+
+  /* ---- Default SDK -------------------------------------------------------- */
+  (function bootDefault(w, d) {
+    var tries = 0;
+    w.__default__ = w.__default__ || {};
+    if (CFG.FORM_ID) w.__default__.form_id = w.__default__.form_id || CFG.FORM_ID;
+    w.__default__.team_id = w.__default__.team_id || CFG.TEAM_ID;
+    w.__default__.listenToIds = w.__default__.listenToIds || [];
+    if (w.__default__loaded || d.querySelector('script[src^="https://import-cdn.default.com"]')) return;
+    (function load() {
+      var s = d.createElement('script');
+      s.async = true;
+      s.src = 'https://import-cdn.default.com';
+      s.onerror = function () { if (++tries <= 3) window.setTimeout(load, 1000 * tries); };
+      d.head.appendChild(s);
+    }());
+  }(window, document));
+
+  /* ---- phone -------------------------------------------------------------- */
+  var phoneInput = $('usv-phone');
+  function digitsOf(v) { return String(v || '').replace(/\D/g, ''); }
+  function formatPhone(v) {
+    var d = digitsOf(v);
+    if (d.charAt(0) === '1' && d.length > 10) d = d.slice(1);
+    d = d.slice(0, 10);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return '(' + d.slice(0, 3) + ') ' + d.slice(3);
+    return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6);
+  }
+  on(phoneInput, 'input', function () {
+    var raw = phoneInput.value;
+    if (raw.charAt(0) === '+' && digitsOf(raw).slice(0, 1) !== '1') return;   // international: leave it
+    var pos = phoneInput.selectionStart, before = raw.length;
+    phoneInput.value = formatPhone(raw);
+    if (pos !== null && pos < before) {
+      var at = pos + (phoneInput.value.length - before);
+      try { phoneInput.setSelectionRange(at, at); } catch (e) { /* no-op */ }
+    }
+  });
+  function phoneValid(v) {
+    var raw = String(v || '').trim(), d = digitsOf(raw);
+    if (raw.charAt(0) === '+') return d.length >= 8 && d.length <= 15;
+    if (d.length === 11 && d.charAt(0) === '1') d = d.slice(1);
+    if (d.length !== 10 || /^(\d)\1{9}$/.test(d)) return false;
+    return !/[01]/.test(d.charAt(0)) && !/[01]/.test(d.charAt(3));
+  }
+  function phoneE164(v) {
+    var raw = String(v || '').trim(), d = digitsOf(raw);
+    if (raw.charAt(0) === '+') return '+' + d;
+    if (d.length === 10) return '+1' + d;
+    if (d.length === 11 && d.charAt(0) === '1') return '+' + d;
+    return raw;
+  }
+  on(phoneInput, 'blur', function () {
+    if (phoneInput.value.trim() && !phoneValid(phoneInput.value)) setErr($('usv-f-phone'));
+  });
+
+  /* ---- validation --------------------------------------------------------- */
+  var EMAIL_RE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)*\.[a-zA-Z]{2,}$/;
+  function setErr(f) { if (f) f.classList.add('is-invalid'); }
+  function clearErr(f) { if (f) f.classList.remove('is-invalid'); }
+  function check(id, ok) { (ok ? clearErr : setErr)($(id)); return ok; }
+  function picked(name) { return root.querySelector('input[name="' + name + '"]:checked'); }
+
+  function validate() {
+    /* every check runs, so all the errors show at once */
+    var r = [
+      check('usv-f-first', $('usv-first').value.trim().length > 0),
+      check('usv-f-last',  $('usv-last').value.trim().length > 0),
+      check('usv-f-biz',   $('usv-biz').value.trim().length > 1),
+      check('usv-f-email', EMAIL_RE.test($('usv-email').value.trim())),
+      check('usv-f-phone', phoneValid(phoneInput.value)),
+      check('usv-f-past',  !!picked('worked_with_upserve')),
+      check('usv-f-type',  !!picked('partner_type'))
+    ];
+    return r.indexOf(false) < 0;
+  }
+  function focusFirstInvalid() {
+    var bad = root.querySelector('.usv-field.is-invalid input');
+    if (bad) { try { bad.focus({ preventScroll: false }); } catch (e) { bad.focus(); } }
+  }
+
+  function isBot() {
+    if ($('usv-hp-url').value.trim() !== '' || $('usv-hp-t').value.trim() !== '') return 'honeypot';
+    if ((Date.now() - S.renderedAt) / 1000 < CFG.MIN_SUBMIT_SECONDS) return 'too_fast';
+    return null;
+  }
+
+  /* ---- hidden fields ------------------------------------------------------ */
+  function addHidden(key, val) {
+    var el = document.createElement('input');
+    el.type = 'hidden';
+    el.name = key;
+    el.value = val == null ? '' : String(val);
+    el.setAttribute('data-usv-hidden', '1');
+    if (CFG.FIELDS[key]) el.setAttribute('aria-label', CFG.FIELDS[key]);
+    form.appendChild(el);
+  }
+  function syncHiddenFields() {
+    var old = form.querySelectorAll('[data-usv-hidden]'), i, k;
+    for (i = 0; i < old.length; i++) old[i].parentNode.removeChild(old[i]);
+
+    var email = $('usv-email').value.trim();
+    var v = readAttribution();
+    v.form_type    = 'partner';
+    v.lead_source  = LEAD_SOURCE;
+    v.phone_e164   = phoneE164(phoneInput.value);
+    v.email_domain = email.slice(email.lastIndexOf('@') + 1).toLowerCase();
+    for (k in v) if (v[k] || k === 'lead_source') addHidden(k, v[k]);
+  }
+
+  /* ---- submit ------------------------------------------------------------- */
+  var submitBtn = $('usv-submit'), formErr = $('usv-formerr'), donePanel = $('usv-done');
+
+  function setBusy(b) {
+    S.submitting = b;
+    submitBtn.disabled = b;
+    submitBtn.classList.toggle('is-busy', b);
+    txt($('usv-submit-txt'), b ? 'Sending…' : 'Get started');
+  }
+
+  function showDone() {
+    S.submitted = true;
+    setBusy(false);
+    txt($('usv-done-name'), $('usv-first').value.trim() || 'partner');
+    form.classList.remove('is-on');
+    form.hidden = true;
+    donePanel.hidden = false;
+    donePanel.classList.add('is-on');
+    say('Submitted.');
+    try {
+      var top = root.getBoundingClientRect().top + window.pageYOffset - 24;
+      if (window.pageYOffset > top + 8) window.scrollTo({ top: top, behavior: 'smooth' });
+    } catch (e) { /* no-op */ }
+  }
+
+  function registerDefaultCallbacks() {
+    var d = window.__default__;
+    if (S.cbRegistered || !d || typeof d.registerSubmissionCallbacks !== 'function') return false;
+    S.cbRegistered = true;
+    d.registerSubmissionCallbacks({
+      onSuccess: showDone,
+      onSchedulerDisplayed: showDone,
+      onRedirect: function () { S.submitted = true; setBusy(false); },
+      onError: function (err) {
+        setBusy(false);
+        formErr.textContent = 'We couldn’t send that through. Give it another go, or email ' +
+                              'hello@upserve.com and we’ll pick it up from there.';
+        formErr.classList.add('is-on');
+        if (window.console) console.error('[usv] Default submission failed', err);
+      }
+    });
+    return true;
+  }
+
+  /* Capture phase on document runs ahead of Default's listener on the form:
+     always preventDefault (Default doesn't), stopPropagation only to block. */
+  function gate(e) {
+    if (e.target !== form) return;
+    e.preventDefault();
+    if (S.submitting || S.submitted) { e.stopPropagation(); return; }
+    formErr.classList.remove('is-on');
+
+    if (!validate()) { e.stopPropagation(); focusFirstInvalid(); return; }
+
+    var trap = isBot();
+    if (trap) { e.stopPropagation(); track('blocked', { reason: trap }); showDone(); return; }
+
+    syncHiddenFields();
+    track('submit', {
+      partner_type: picked('partner_type').value,
+      worked_with_upserve: picked('worked_with_upserve').value
+    });
+    setBusy(true);
+    registerDefaultCallbacks();
+    /* If Default never answers, don't strand them on a spinner. */
+    window.setTimeout(function () { if (!S.submitted) showDone(); }, 6000);
+    /* falls through to Default's listener */
+  }
+  document.addEventListener('submit', gate, true);
+
+  function boot() {
+    S.renderedAt = Date.now();
+    track('view');
+    if (CFG.FORM_ID) form.setAttribute('data-default-form-id', String(CFG.FORM_ID));
+    else if (window.console) console.warn('[Upserve partner form] CFG.FORM_ID not set: posting to the page’s default Default form.');
+    var tries = 0;
+    var poll = window.setInterval(function () {
+      if (registerDefaultCallbacks() || tries++ > 60) window.clearInterval(poll);
+    }, 250);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+}());
+</script>

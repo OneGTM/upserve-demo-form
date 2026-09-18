@@ -14,6 +14,7 @@ config.local.json
 # That is only safe because this repo is private — if it ever goes public
 # again, re-ignore all of them and rotate the key.
 preview.html
+preview-partner.html
 prototype.html
 
 # iCloud Drive conflict copies. It appends " 2" to a filename when two
