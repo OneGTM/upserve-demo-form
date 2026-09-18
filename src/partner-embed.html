@@ -172,6 +172,31 @@
   margin-top:2px;padding-left:31px;pointer-events:none;
 }
 
+/* --- typo rescue ---------------------------------------------------------- */
+#usv-partner .usv-typo{
+  display:none;align-items:center;gap:6px 7px;flex-wrap:wrap;
+  margin:9px 0 0;font-size:13.5px;color:var(--usv-ink-2);
+}
+#usv-partner .usv-typo.is-on{display:flex;}
+#usv-partner .usv-typo-btn{
+  font-family:var(--usv-sans);font-size:13.5px;font-weight:700;
+  color:var(--usv-ink);background:var(--usv-yellow);
+  border:0;border-radius:5px;padding:4px 9px;cursor:pointer;
+  transition:filter .15s ease;
+}
+#usv-partner .usv-typo-btn:hover{filter:brightness(.94);}
+#usv-partner .usv-typo-no{
+  font-family:var(--usv-sans);font-size:13px;color:var(--usv-ink-3);
+  background:none;border:0;padding:2px 0;cursor:pointer;text-decoration:underline;
+  text-underline-offset:3px;
+}
+
+#usv-partner .usv-typo-no,#usv-partner .usv-typo-btn{position:relative;}
+/* side by side with a 7px gap, so they barely grow sideways */
+#usv-partner .usv-typo-no::after,#usv-partner .usv-typo-btn::after{
+  content:"";position:absolute;inset:-11px -3px;
+}
+
 /* --- button --------------------------------------------------------------- */
 #usv-partner .usv-actions{margin-top:22px;}
 #usv-partner .usv-btn{
@@ -279,6 +304,11 @@
             <input class="usv-input" id="usv-email" name="email" type="email"
                    autocomplete="email" inputmode="email" spellcheck="false"
                    autocapitalize="off" placeholder="you@company.com">
+            <div class="usv-typo" id="usv-typo">
+              <span>Did you mean <strong id="usv-typo-txt"></strong>?</span>
+              <button type="button" class="usv-typo-btn" id="usv-typo-yes">Use it</button>
+              <button type="button" class="usv-typo-no" id="usv-typo-no">No, it&rsquo;s right</button>
+            </div>
             <p class="usv-err">Enter an email we can actually reach.</p>
           </div>
           <div class="usv-field" id="usv-f-phone">
@@ -379,7 +409,8 @@
   root.dataset.usvBooted = '1';
 
   var form = $('usv-partner-form');
-  var S = { renderedAt: Date.now(), submitting: false, submitted: false, cbRegistered: false };
+  var S = { renderedAt: Date.now(), submitting: false, submitted: false, cbRegistered: false,
+            typoFix: null, typoDismissed: false };
 
   function txt(el, s) { if (el) el.textContent = s; }
   function say(s) { txt($('usv-live'), s); }
@@ -532,6 +563,146 @@
     if (bad) { try { bad.focus({ preventScroll: false }); } catch (e) { bad.focus(); } }
   }
 
+  /* =========================================================================
+     Email — typo rescue. Suggests, never blocks.
+     One live lead is already sitting on a cadence to an unreachable address;
+     this makes that shape of mistake structurally hard to repeat.
+     ========================================================================= */
+  var COMMON_DOMAINS = ('gmail.com yahoo.com hotmail.com outlook.com aol.com icloud.com ' +
+    'me.com msn.com live.com comcast.net verizon.net att.net cox.net sbcglobal.net ' +
+    'bellsouth.net charter.net earthlink.net ymail.com mac.com protonmail.com ' +
+    'proton.me yahoo.ca rogers.com shaw.ca').split(' ');
+
+  /* Hard-coded fixes for typos the fuzzy match below cannot reach.
+     Every common misspelling - gmial, gnail, gamil, hotmial, outlok, yahooo,
+     iclould - already resolves through the Levenshtein pass, so this stays
+     empty. Add an entry only if a real one ever escapes it. */
+  var KNOWN_TYPOS = {};
+
+  var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
+
+  function lev(a, b) {
+    var m = a.length, n = b.length, i, j, prev, tmp;
+    if (!m) return n;
+    if (!n) return m;
+    var row = new Array(n + 1);
+    for (j = 0; j <= n; j++) row[j] = j;
+    for (i = 1; i <= m; i++) {
+      prev = row[0]; row[0] = i;
+      for (j = 1; j <= n; j++) {
+        tmp = row[j];
+        row[j] = Math.min(
+          row[j] + 1,
+          row[j - 1] + 1,
+          prev + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1)
+        );
+        prev = tmp;
+      }
+    }
+    return row[n];
+  }
+
+  function suggestEmail(value) {
+    var v = String(value || '').trim().toLowerCase();
+    var at = v.lastIndexOf('@');
+    if (at < 1 || at === v.length - 1) return null;
+
+    var local  = v.slice(0, at);
+    var domain = v.slice(at + 1);
+    if (!domain || domain.indexOf('.') < 0) return null;
+
+    var fixed = domain;
+
+    /* 1. doubled TLD: gmail.com.com -> gmail.com */
+    var parts = fixed.split('.');
+    while (parts.length > 2 && parts[parts.length - 1] === parts[parts.length - 2]) parts.pop();
+    fixed = parts.join('.');
+
+    /* 2. known misspellings */
+    if (KNOWN_TYPOS[fixed]) fixed = KNOWN_TYPOS[fixed];
+
+    /* 3. near-miss on a common consumer domain */
+    if (COMMON_DOMAINS.indexOf(fixed) < 0) {
+      var best = null, bestD = 99, d, i;
+      for (i = 0; i < COMMON_DOMAINS.length; i++) {
+        d = lev(fixed, COMMON_DOMAINS[i]);
+        if (d < bestD) { bestD = d; best = COMMON_DOMAINS[i]; }
+      }
+      var limit = fixed.length <= 6 ? 1 : 2;
+      if (best && bestD > 0 && bestD <= limit) fixed = best;
+    }
+
+    /* 4. bad TLD on an otherwise fine domain: yourplace.con -> yourplace.com */
+    if (COMMON_DOMAINS.indexOf(fixed) < 0) {
+      var seg = fixed.split('.');
+      var tld = seg[seg.length - 1];
+      if (TLDS.indexOf(tld) < 0) {
+        var bt = null, btD = 99, k;
+        for (k = 0; k < TLDS.length; k++) {
+          var dd = lev(tld, TLDS[k]);
+          if (dd < btD) { btD = dd; bt = TLDS[k]; }
+        }
+        if (bt && btD === 1) { seg[seg.length - 1] = bt; fixed = seg.join('.'); }
+      }
+    }
+
+    if (fixed === domain) return null;
+    return local + '@' + fixed;
+  }
+
+  var emailInput = $('usv-email');
+  var typoBox    = $('usv-typo');
+  var typoTxt    = $('usv-typo-txt');
+
+  function showTypo(fix) {
+    S.typoFix = fix;
+    txt(typoTxt, fix);
+    typoBox.classList.add('is-on');
+    say('Did you mean ' + fix + '?');
+  }
+  function hideTypo() {
+    S.typoFix = null;
+    typoBox.classList.remove('is-on');
+  }
+
+  function checkEmailTypo() {
+    if (S.typoDismissed) return;
+    var fix = suggestEmail(emailInput.value);
+    if (fix) showTypo(fix); else hideTypo();
+  }
+
+  /* Check the address the moment they leave the field, not just at submit.
+     Two different problems, two different messages: a malformed address gets
+     the inline error, a plausible-but-misspelt domain gets the "did you mean". */
+  on(emailInput, 'blur', function () {
+    var val = emailInput.value.trim();
+    if (val === '') return;                       /* not filled in yet, not an error */
+    if (!EMAIL_RE.test(val)) {
+      setErr($('usv-f-email'));
+      hideTypo();
+      return;
+    }
+    clearErr($('usv-f-email'));
+    checkEmailTypo();
+  });
+  on(emailInput, 'input', function () {
+    clearErr($('usv-f-email'));
+    if (typoBox.classList.contains('is-on')) hideTypo();
+    S.typoDismissed = false;
+  });
+  on($('usv-typo-yes'), 'click', function () {
+    if (S.typoFix) { emailInput.value = S.typoFix; }
+    hideTypo();
+    S.typoDismissed = true;
+    clearErr($('usv-f-email'));
+    emailInput.focus();
+  });
+  on($('usv-typo-no'), 'click', function () {
+    hideTypo();
+    S.typoDismissed = true;     /* their call — we never block on this */
+    emailInput.focus();
+  });
+
   function isBot() {
     if ($('usv-hp-url').value.trim() !== '' || $('usv-hp-t').value.trim() !== '') return 'honeypot';
     if ((Date.now() - S.renderedAt) / 1000 < CFG.MIN_SUBMIT_SECONDS) return 'too_fast';
@@ -617,6 +788,19 @@
 
     var trap = isBot();
     if (trap) { e.stopPropagation(); track('blocked', { reason: trap }); showDone(); return; }
+
+    /* Last chance on the typo, once. If the hint is already showing they have
+       seen it, and eating their click would look like a dead button. */
+    if (!S.typoDismissed && !typoBox.classList.contains('is-on')) {
+      var fix = suggestEmail(emailInput.value);
+      if (fix) {
+        e.stopPropagation();
+        showTypo(fix);
+        S.typoDismissed = true;
+        emailInput.focus();
+        return;
+      }
+    }
 
     syncHiddenFields();
     track('submit', {

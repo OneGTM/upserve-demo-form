@@ -89,3 +89,27 @@ test('the form fits the viewport with no sideways scroll', async ({ page }) => {
     document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
+
+test('a misspelt email domain is offered a fix, and "Use it" applies it', async ({ page }) => {
+  await open(page);
+  const email = page.getByLabel('Email address');
+  await email.fill('alex@gmial.com');
+  await email.blur();
+  await expect(page.getByText(/did you mean alex@gmail\.com/i).first()).toBeVisible();
+  await page.getByRole('button', { name: 'Use it' }).click();
+  await expect(email).toHaveValue('alex@gmail.com');
+});
+
+test('a typo stops the first submit once, then "No, it\'s right" lets it through', async ({ page }) => {
+  const t = await open(page);
+  await fill(page);
+  await page.getByLabel('Email address').fill('alex@acmepay.con');
+  await submit(page, t);
+  await expect(page.getByText(/did you mean alex@acmepay\.com/i).first()).toBeVisible();
+  expect(await subs(page)).toHaveLength(0);
+
+  await page.getByRole('button', { name: /no, it.s right/i }).click();
+  await page.getByRole('button', { name: /get started/i }).click();
+  await expect(page.getByText(/thanks, alex/i)).toBeVisible();
+  expect((await subs(page))[0].fields.email).toBe('alex@acmepay.con');
+});
