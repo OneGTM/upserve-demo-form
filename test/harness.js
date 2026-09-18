@@ -262,4 +262,22 @@ ${head}
 </body></html>`;
 }
 
-module.exports = { page, pageInWebflowColumn };
+/**
+ * The partner form: the built webflow/partner-embed.html with the same
+ * Default stub. The shipped FORM_ID is null until Default has a form for it,
+ * so a test id is seeded here — the stub only captures stamped forms.
+ */
+function partnerPage(opts = {}) {
+  const file = path.join(ROOT, 'webflow', 'partner-embed.html');
+  if (!fs.existsSync(file)) throw new Error('No webflow/partner-embed.html — run `node build.js` first');
+  const embed = fs.readFileSync(file, 'utf8').replace('FORM_ID:null', 'FORM_ID:424242');
+  const attr = opts.leadSource != null ? ' data-upserve-lead-source="' + opts.leadSource + '"' : '';
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>partner form under test</title></head><body>
+${STUB}
+<div${attr}>${embed}</div>
+</body></html>`;
+}
+
+module.exports = { page, pageInWebflowColumn, partnerPage };
