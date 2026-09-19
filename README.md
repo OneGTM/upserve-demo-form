@@ -30,6 +30,37 @@ a channel (`lead_source`), without a rebuild. See
 
 ---
 
+## Partner form
+
+A second, separate embed for the partner page: `src/partner-embed.html` →
+`webflow/partner-embed.html` (~17,000 characters, one paste). Same tokens,
+cards and button as the demo form; one step, no Places lookup.
+
+| Field | `name` | Values |
+|---|---|---|
+| First / last name | `first_name`, `last_name` | |
+| Business name | `business_name` | |
+| Email address | `email` | |
+| Phone number | `phone` | formatted; `phone_e164` sent alongside |
+| Worked with Upserve before? | `worked_with_upserve` | `yes`, `no` |
+| Partner type | `partner_type` | `tech_partner`, `sales_partner`, `both` |
+
+Hidden: `form_type=partner`, `email_domain`, `lead_source`
+(`data-upserve-lead-source` on a wrapper, same as the demo form), UTMs,
+`gclid`, `landing_page`, `referrer`. Same honeypot and 3-second floor.
+
+**Before launch, set `CFG.FORM_ID`** to the partner form's id in Default. While
+it is `null` the form is not stamped and posts to whatever form the page's
+Default snippet boots.
+
+```bash
+npm run copy:partner   # builds, puts webflow/partner-embed.html on the clipboard
+```
+
+Local look: `preview-partner.html` (generated, gitignored).
+
+---
+
 ## Install in Webflow
 
 `webflow/embed.html` is committed with the key already in it, so you can copy
