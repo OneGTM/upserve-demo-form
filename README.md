@@ -33,7 +33,7 @@ a channel (`lead_source`), without a rebuild. See
 ## Partner form
 
 A second, separate embed for the partner page: `src/partner-embed.html` →
-`webflow/partner-embed.html` (~17,000 characters, one paste). Same tokens,
+`webflow/partner-embed.html` (~21,000 characters, one paste). Same tokens,
 cards and button as the demo form; one step, no Places lookup.
 
 | Field | `name` | Values |
@@ -42,13 +42,17 @@ cards and button as the demo form; one step, no Places lookup.
 | Business name | `business_name` | |
 | Email address | `email` | |
 | Phone number | `phone` | formatted; `phone_e164` sent alongside |
-| Worked with Upserve before? | `worked_with_upserve` | `yes`, `no` |
-| Partner type | `partner_type` | `tech_partner`, `sales_partner`, `both` |
-| Restaurant owners engaged monthly | `monthly_restaurant_owners` | `1_5`, `5_20`, `20_50`, `50_plus` |
+| Have you worked with Upserve in the past? | `worked_with_upserve_before` | `yes`, `no` |
+| Partner type | `partner_type` | `tech`, `sales`, `tech_and_sales` |
+| How many restaurant owners do you engage with monthly? | `restaurant_owners_per_month` | `1_to_5`, `5_to_20`, `20_to_50`, `50_plus` |
 
 Hidden: `form_type=partner`, `email_domain`, `lead_source`
 (`data-upserve-lead-source` on a wrapper, same as the demo form), UTMs,
 `gclid`, `landing_page`, `referrer`. Same honeypot and 3-second floor.
+
+The `name` and value columns are what Default receives, and what it maps to
+the CRM — the same contract as the demo form. Rename one only before launch, or
+re-map it in Default afterwards.
 
 **Before launch, set `CFG.FORM_ID`** to the partner form's id in Default. While
 it is `null` the form is not stamped and posts to whatever form the page's

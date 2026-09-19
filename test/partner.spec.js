@@ -22,9 +22,9 @@ async function fill(page) {
   await page.getByLabel('Business name').fill('Acme Payments');
   await page.getByLabel('Email address').fill('alex@acmepay.com');
   await page.getByLabel('Phone number').fill('3055550142');
-  await page.locator('input[name="worked_with_upserve"][value="no"]').check({ force: true });
-  await page.locator('input[name="partner_type"][value="tech_partner"]').check({ force: true });
-  await page.locator('input[name="monthly_restaurant_owners"][value="20_50"]').check({ force: true });
+  await page.locator('input[name="worked_with_upserve_before"][value="no"]').check({ force: true });
+  await page.locator('input[name="partner_type"][value="tech"]').check({ force: true });
+  await page.locator('input[name="restaurant_owners_per_month"][value="20_to_50"]').check({ force: true });
 }
 
 async function submit(page, openedAt) {
@@ -49,9 +49,9 @@ test('a complete submission reaches Default with every field', async ({ page }) 
     business_name: 'Acme Payments',
     email: 'alex@acmepay.com',
     phone: '(305) 555-0142',
-    worked_with_upserve: 'no',
-    partner_type: 'tech_partner',
-    monthly_restaurant_owners: '20_50',
+    worked_with_upserve_before: 'no',
+    partner_type: 'tech',
+    restaurant_owners_per_month: '20_to_50',
     form_type: 'partner',
     phone_e164: '+13055550142',
     email_domain: 'acmepay.com',
@@ -59,6 +59,11 @@ test('a complete submission reaches Default with every field', async ({ page }) 
   });
   // hidden fields carry a readable label, not the wire name
   expect(s.labels.phone_e164).toBe('Phone (E.164)');
+  expect(s.labels).toMatchObject({
+    worked_with_upserve_before: 'Worked with Upserve before',
+    partner_type: 'Partner type',
+    restaurant_owners_per_month: 'Restaurant owners engaged per month'
+  });
 });
 
 test('an empty submit flags every required field and sends nothing', async ({ page }) => {
