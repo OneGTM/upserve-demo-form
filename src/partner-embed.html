@@ -5,8 +5,9 @@
   Readable source. Run `node build.js` and paste webflow/partner-embed.html
   (or `npm run copy:partner`), never this file.
 
-  One step, seven questions: name, business, email, phone, whether they have
-  worked with Upserve before, and what kind of partner they are. Same look as
+  One step, eight questions: name, business, email, phone, whether they have
+  worked with Upserve before, what kind of partner they are, and how many
+  restaurant owners they reach a month. Same look as
   the demo form (tokens, cards, button) so the two sit on the site as a pair.
 
   Posts through Default's SDK exactly like the demo form: the SDK reads the
@@ -135,10 +136,12 @@
 #usv-partner .usv-cards--pill .usv-card-hit{justify-content:center;gap:0;}
 #usv-partner .usv-cards--pill .usv-mark{display:none;}
 #usv-partner .usv-cards--pill .usv-card-t{font-size:14px;text-align:center;}
-#usv-partner .usv-cards--pill{grid-template-columns:repeat(2,minmax(0,1fr));max-width:340px;}
+#usv-partner .usv-cards--yn{grid-template-columns:repeat(2,minmax(0,1fr));max-width:340px;}
+/* Four ranges: across on a laptop, 2x2 on a phone. */
+#usv-partner .usv-cards--owners{grid-template-columns:repeat(auto-fit,minmax(min(110px,100%),1fr));}
 /* Partner type carries descriptions, so a wider floor: three across on a
    laptop, straight to one per line on a phone, never 2+1. */
-#usv-partner .usv-cards--type{grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));}
+#usv-partner .usv-cards--partner{grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));}
 #usv-partner .usv-nw{white-space:nowrap;}
 
 #usv-partner .usv-card-opt{
@@ -319,20 +322,28 @@
           </div>
         </div>
 
-        <div class="usv-field" id="usv-f-past">
-          <span class="usv-label" id="usv-past-l">Have you worked with Upserve in the <span class="usv-nw">past?<span class="usv-req">*</span></span></span>
-          <fieldset class="usv-cards usv-cards--row usv-cards--pill" data-cards="past" aria-labelledby="usv-past-l">
-            <legend class="usv-sr">Worked with Upserve in the past</legend>
+        <div class="usv-field" id="usv-f-worked">
+          <span class="usv-label" id="usv-worked-l">Have you worked with Upserve in the <span class="usv-nw">past?<span class="usv-req">*</span></span></span>
+          <fieldset class="usv-cards usv-cards--pill usv-cards--yn" data-cards="worked" aria-labelledby="usv-worked-l">
+            <legend class="usv-sr">Worked with Upserve before</legend>
           </fieldset>
           <p class="usv-err">Pick one.</p>
         </div>
 
-        <div class="usv-field" id="usv-f-type">
-          <span class="usv-label" id="usv-type-l">Partner type<span class="usv-req">*</span></span>
-          <fieldset class="usv-cards usv-cards--type" data-cards="type" aria-labelledby="usv-type-l">
+        <div class="usv-field" id="usv-f-partner">
+          <span class="usv-label" id="usv-partner-l">Partner type<span class="usv-req">*</span></span>
+          <fieldset class="usv-cards usv-cards--partner" data-cards="partner" aria-labelledby="usv-partner-l">
             <legend class="usv-sr">Partner type</legend>
           </fieldset>
           <p class="usv-err">Pick the one that fits.</p>
+        </div>
+
+        <div class="usv-field" id="usv-f-owners">
+          <span class="usv-label" id="usv-owners-l">How many restaurant owners do you engage with <span class="usv-nw">monthly?<span class="usv-req">*</span></span></span>
+          <fieldset class="usv-cards usv-cards--pill usv-cards--owners" data-cards="owners" aria-labelledby="usv-owners-l">
+            <legend class="usv-sr">Restaurant owners engaged per month</legend>
+          </fieldset>
+          <p class="usv-err">Pick the range that fits.</p>
         </div>
 
         <div class="usv-actions">
@@ -393,13 +404,18 @@
   /* Cards, as in the demo form:  value ; title ; description
      Values are the wire contract with Default. Titles can change freely. */
   var CARDS = {
-    past: ['worked_with_upserve',
+    worked: ['worked_with_upserve_before',
       'yes;Yes;',
       'no;No;'],
-    type: ['partner_type',
-      'tech_partner;Tech partner;Your product integrates with Upserve',
-      'sales_partner;Sales partner;You refer or resell to restaurants',
-      'both;Both;You build and you sell']
+    partner: ['partner_type',
+      'tech;Tech partner;Your product integrates with Upserve',
+      'sales;Sales partner;You refer or resell to restaurants',
+      'tech_and_sales;Both;You build and you sell'],
+    owners: ['restaurant_owners_per_month',
+      '1_to_5;1\u20135;',
+      '5_to_20;5\u201320;',
+      '20_to_50;20\u201350;',
+      '50_plus;50+;']
   };
 
   var $  = function (id) { return document.getElementById(id); };
@@ -553,8 +569,9 @@
       check('usv-f-biz',   $('usv-biz').value.trim().length > 1),
       check('usv-f-email', EMAIL_RE.test($('usv-email').value.trim())),
       check('usv-f-phone', phoneValid(phoneInput.value)),
-      check('usv-f-past',  !!picked('worked_with_upserve')),
-      check('usv-f-type',  !!picked('partner_type'))
+      check('usv-f-worked',  !!picked('worked_with_upserve_before')),
+      check('usv-f-partner',  !!picked('partner_type')),
+      check('usv-f-owners', !!picked('restaurant_owners_per_month'))
     ];
     return r.indexOf(false) < 0;
   }
@@ -565,8 +582,6 @@
 
   /* =========================================================================
      Email — typo rescue. Suggests, never blocks.
-     One live lead is already sitting on a cadence to an unreachable address;
-     this makes that shape of mistake structurally hard to repeat.
      ========================================================================= */
   var COMMON_DOMAINS = ('gmail.com yahoo.com hotmail.com outlook.com aol.com icloud.com ' +
     'me.com msn.com live.com comcast.net verizon.net att.net cox.net sbcglobal.net ' +
@@ -805,7 +820,8 @@
     syncHiddenFields();
     track('submit', {
       partner_type: picked('partner_type').value,
-      worked_with_upserve: picked('worked_with_upserve').value
+      worked_with_upserve_before: picked('worked_with_upserve_before').value,
+      restaurant_owners_per_month: picked('restaurant_owners_per_month').value
     });
     setBusy(true);
     registerDefaultCallbacks();
