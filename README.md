@@ -46,7 +46,7 @@ cards and button as the demo form; one step, no Places lookup.
 | Partner type | `partner_type` | `tech`, `sales`, `tech_and_sales` |
 | How many restaurant owners do you engage with monthly? | `restaurant_owners_per_month` | `1_to_5`, `5_to_20`, `20_to_50`, `50_plus` |
 
-Hidden: `form_type=partner`, `email_domain`, `lead_source`
+Hidden, sent on every submission even when empty: `form_type=partner`, `email_domain`, `lead_source`
 (`data-upserve-lead-source` on a wrapper, same as the demo form), UTMs,
 `gclid`, `landing_page`, `referrer`. Same honeypot and 3-second floor.
 
