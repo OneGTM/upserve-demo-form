@@ -24,6 +24,7 @@ async function fill(page) {
   await page.getByLabel('Phone number').fill('3055550142');
   await page.locator('input[name="worked_with_upserve"][value="no"]').check({ force: true });
   await page.locator('input[name="partner_type"][value="tech_partner"]').check({ force: true });
+  await page.locator('input[name="monthly_restaurant_owners"][value="20_50"]').check({ force: true });
 }
 
 async function submit(page, openedAt) {
@@ -50,6 +51,7 @@ test('a complete submission reaches Default with every field', async ({ page }) 
     phone: '(305) 555-0142',
     worked_with_upserve: 'no',
     partner_type: 'tech_partner',
+    monthly_restaurant_owners: '20_50',
     form_type: 'partner',
     phone_e164: '+13055550142',
     email_domain: 'acmepay.com',
@@ -62,7 +64,7 @@ test('a complete submission reaches Default with every field', async ({ page }) 
 test('an empty submit flags every required field and sends nothing', async ({ page }) => {
   const t = await open(page);
   await submit(page, t);
-  await expect(page.locator('.is-invalid')).toHaveCount(7);
+  await expect(page.locator('.is-invalid')).toHaveCount(8);
   expect(await subs(page)).toHaveLength(0);
 });
 
