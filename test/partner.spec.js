@@ -59,6 +59,12 @@ test('a complete submission reaches Default with every field', async ({ page }) 
   });
   // hidden fields carry a readable label, not the wire name
   expect(s.labels.phone_e164).toBe('Phone (E.164)');
+  // the bot traps never reach Default
+  expect(s.fields).not.toHaveProperty('company_website_confirm');
+  expect(s.fields).not.toHaveProperty('form_render_time');
+  // empty attribution still arrives, so Default can map it before the first ad click
+  expect(s.fields).toHaveProperty('utm_source', '');
+  expect(s.fields).toHaveProperty('gclid', '');
   expect(s.labels).toMatchObject({
     worked_with_upserve_before: 'Worked with Upserve before',
     partner_type: 'Partner type',

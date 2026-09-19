@@ -307,6 +307,19 @@ test('every field arrives under a readable label, never a raw slug',
     expect(labels.routing_owner).toBe('Routing owner (AE, SDR, AM or SUPPORT)');
   });
 
+test('the lead says which form it came from', async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await fillContact(page);
+  await submit(page);
+
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  const { fields, labels } = (await submissions(page))[0];
+  expect(fields.form_type).toBe('demo');
+  expect(labels.form_type).toBe('Form type');
+});
+
 test('the honeypot fields never reach Default', async ({ page }) => {
   await open(page);
   await pickRestaurant(page, 'Tautog');
@@ -535,7 +548,7 @@ test('visitor_type reaches Default under a readable label', async ({ page }) => 
   await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
   const { fields, labels } = (await submissions(page))[0];
   expect(fields.visitor_type).toBe('prospect');
-  expect(labels.visitor_type).toBe('Who they are');
+  expect(labels.visitor_type).toBe('New or existing customer');
 });
 
 /* ── branching: one form, two questionnaires ─────────────────────────────── */
@@ -735,7 +748,7 @@ test('all three questions arrive as option groups Default can branch on',
     expect(optionsByName.restaurant_status).toEqual(
       ['brand_new_opening', 'replacing_pos', 'exploring']);
 
-    expect(labels.visitor_type).toBe('Who they are');
+    expect(labels.visitor_type).toBe('New or existing customer');
   });
 
 /* ── the always-visible way out ──────────────────────────────────────────── */
