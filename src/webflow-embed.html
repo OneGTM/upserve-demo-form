@@ -562,7 +562,7 @@
 
           <div class="usv-field" id="usv-f-visitor">
             <fieldset class="usv-cards" data-cards="visitor">
-              <legend class="usv-sr">Who they are</legend>
+              <legend class="usv-sr">New or existing customer</legend>
             </fieldset>
             <p class="usv-err" id="usv-visitor-err">Pick the one that fits.</p>
           </div>
@@ -806,6 +806,7 @@
        here gets an explicit label. Edit the right-hand side freely; the left
        side is the wire name and should stay stable once Default has mapped it. */
     FIELDS : {
+      form_type            : 'Form type',
       routing_owner        : 'Routing owner (AE, SDR, AM or SUPPORT)',
       place_source         : 'Place source (google, manual, not listed)',
       place_verified       : 'Place verified on Google',
@@ -2321,15 +2322,18 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     v.landing_page = ATTR.landing_page || '';
     v.referrer     = ATTR.referrer     || '';
 
-    /* The traps have done their job by the time we get here. Drop their names
-       so Default doesn't receive two junk questions on every real lead —
-       nameless inputs are skipped when it reads the form. */
+    /* Which form this came from. The partner form sends 'partner'. */
+    v.form_type    = 'demo';
+
     /* Whichever question was not asked must not reach Default at all —
        an empty restaurant_status on an AM lead reads as missing data. */
     var unused = root.querySelectorAll(isCustomer()
       ? 'input[name="restaurant_status"]' : 'input[name="help_topic"]'), un;
     for (un = 0; un < unused.length; un++) unused[un].removeAttribute('name');
 
+    /* The traps have done their job by the time we get here. Drop their names
+       so Default doesn't receive two junk questions on every real lead —
+       nameless inputs are skipped when it reads the form. */
     var hp = form.querySelectorAll('.usv-hp input'), h;
     for (h = 0; h < hp.length; h++) hp[h].removeAttribute('name');
 

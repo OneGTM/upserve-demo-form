@@ -738,13 +738,21 @@
     var old = form.querySelectorAll('[data-usv-hidden]'), i, k;
     for (i = 0; i < old.length; i++) old[i].parentNode.removeChild(old[i]);
 
+    /* The traps have done their job by now. Drop their names so Default
+       doesn't receive two junk fields on every real lead. */
+    var hp = form.querySelectorAll('.usv-hp input');
+    for (i = 0; i < hp.length; i++) hp[i].removeAttribute('name');
+
     var email = $('usv-email').value.trim();
     var v = readAttribution();
     v.form_type    = 'partner';
     v.lead_source  = LEAD_SOURCE;
     v.phone_e164   = phoneE164(phoneInput.value);
     v.email_domain = email.slice(email.lastIndexOf('@') + 1).toLowerCase();
-    for (k in v) if (v[k] || k === 'lead_source') addHidden(k, v[k]);
+    /* Every field on every submission, empty or not: Default learns its
+       schema from what arrives, so a field only ever sent when filled (a UTM,
+       say) would be missing from its mapping list until someone clicked an ad. */
+    for (k in v) addHidden(k, v[k]);
   }
 
   /* ---- submit ------------------------------------------------------------- */
