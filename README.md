@@ -44,7 +44,7 @@ cards and button as the demo form; one step, no Places lookup.
 | Phone number | `phone` | formatted; `phone_e164` sent alongside |
 | Have you worked with Upserve in the past? | `worked_with_upserve_before` | `yes`, `no` |
 | Partner type | `partner_type` | `tech`, `sales`, `tech_and_sales` |
-| How many restaurant owners do you engage with monthly? | `restaurant_owners_per_month` | `1_to_5`, `6_to_20`, `21_to_50`, `50_plus` |
+| How many restaurant owners do you engage with monthly? | `restaurant_owners_per_month` | `1_to_5`, `6_to_20`, `21_to_50`, `51_plus` |
 
 Hidden, sent on every submission even when empty: `form_type=partner`, `email_domain`, `lead_source`
 (`data-upserve-lead-source` on a wrapper, same as the demo form), UTMs,
