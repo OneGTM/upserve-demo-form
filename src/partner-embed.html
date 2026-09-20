@@ -54,6 +54,10 @@
      floors at its min-content width and pushes the page sideways. */
   max-width:100%;
   min-width:0;
+  /* An explicit width, not the content's: the container queries below take
+     the owner and partner-type grids out of the content-width calculation,
+     so a form sized by its content would shrink inside that flex wrapper. */
+  width:100%;
 }
 #usv-partner *,#usv-partner *::before,#usv-partner *::after{box-sizing:border-box;}
 #usv-partner svg{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;}
@@ -137,11 +141,20 @@
 #usv-partner .usv-cards--pill .usv-mark{display:none;}
 #usv-partner .usv-cards--pill .usv-card-t{font-size:14px;text-align:center;}
 #usv-partner .usv-cards--yn{grid-template-columns:repeat(2,minmax(0,1fr));max-width:340px;}
-/* Four ranges: across on a laptop, 2x2 on a phone. */
-#usv-partner .usv-cards--owners{grid-template-columns:repeat(auto-fit,minmax(min(110px,100%),1fr));}
-/* Partner type carries descriptions, so a wider floor: three across on a
-   laptop, straight to one per line on a phone, never 2+1. */
-#usv-partner .usv-cards--partner{grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));}
+/* Partner type and owner reach lay out on the width the form actually has
+   (a container query), in fixed steps. auto-fit gave 2+1 and 3+1 in the
+   ~450px column upserve.com puts the form in.
+     partner type  one per line, three across from 600px
+     owner reach   four across, 2x2 under 360px */
+#usv-partner .usv-cq{container-type:inline-size;}
+#usv-partner .usv-cards--owners{grid-template-columns:repeat(4,minmax(0,1fr));}
+@container (max-width:359px){
+  #usv-partner .usv-cards--owners{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@container (min-width:600px){
+  #usv-partner .usv-cards--partner{grid-template-columns:repeat(3,minmax(0,1fr));}
+}
+
 #usv-partner .usv-nw{white-space:nowrap;}
 
 #usv-partner .usv-card-opt{
@@ -330,7 +343,7 @@
           <p class="usv-err">Pick one.</p>
         </div>
 
-        <div class="usv-field" id="usv-f-partner">
+        <div class="usv-field usv-cq" id="usv-f-partner">
           <span class="usv-label" id="usv-partner-l">Partner type<span class="usv-req">*</span></span>
           <fieldset class="usv-cards usv-cards--partner" data-cards="partner" aria-labelledby="usv-partner-l">
             <legend class="usv-sr">Partner type</legend>
@@ -338,7 +351,7 @@
           <p class="usv-err">Pick the one that fits.</p>
         </div>
 
-        <div class="usv-field" id="usv-f-owners">
+        <div class="usv-field usv-cq" id="usv-f-owners">
           <span class="usv-label" id="usv-owners-l">How many restaurant owners do you engage with <span class="usv-nw">monthly?<span class="usv-req">*</span></span></span>
           <fieldset class="usv-cards usv-cards--pill usv-cards--owners" data-cards="owners" aria-labelledby="usv-owners-l">
             <legend class="usv-sr">Restaurant owners engaged per month</legend>
