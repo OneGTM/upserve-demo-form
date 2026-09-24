@@ -362,7 +362,7 @@
         <div class="usv-actions">
           <button type="submit" class="usv-btn" id="usv-submit">
             <span class="usv-btn-spin" aria-hidden="true"></span>
-            <span id="usv-submit-txt">Get started</span>
+            <span id="usv-submit-txt">Request a Demo</span>
             <svg class="usv-btn-arrow" width="15" height="13" viewBox="0 0 15 13" aria-hidden="true">
               <path d="M1 6.5h12M8.5 2l4.5 4.5L8.5 11" stroke-width="1.9"/>
             </svg>
@@ -775,7 +775,7 @@
     S.submitting = b;
     submitBtn.disabled = b;
     submitBtn.classList.toggle('is-busy', b);
-    txt($('usv-submit-txt'), b ? 'Sending…' : 'Get started');
+    txt($('usv-submit-txt'), b ? 'Sending…' : 'Request a Demo');
   }
 
   function showDone() {
