@@ -30,7 +30,7 @@ async function fill(page) {
 async function submit(page, openedAt) {
   const wait = FLOOR_MS + 200 - (Date.now() - openedAt);
   if (wait > 0) await page.waitForTimeout(wait);
-  await page.getByRole('button', { name: /request a demo/i }).click();
+  await page.getByRole('button', { name: /get started/i }).click();
 }
 
 const subs = (page) => page.evaluate(() => window.__submissions);
@@ -91,7 +91,7 @@ test('a filled honeypot shows thanks but sends nothing', async ({ page }) => {
 test('submitting faster than a person can is trapped', async ({ page }) => {
   await open(page);
   await fill(page);
-  await page.getByRole('button', { name: /request a demo/i }).click();
+  await page.getByRole('button', { name: /get started/i }).click();
   await expect(page.getByText(/thanks/i)).toBeVisible();
   expect(await subs(page)).toHaveLength(0);
 });
@@ -122,7 +122,7 @@ test('a typo stops the first submit once, then "No, it\'s right" lets it through
   expect(await subs(page)).toHaveLength(0);
 
   await page.getByRole('button', { name: /no, it.s right/i }).click();
-  await page.getByRole('button', { name: /request a demo/i }).click();
+  await page.getByRole('button', { name: /get started/i }).click();
   await expect(page.getByText(/thanks, alex/i)).toBeVisible();
   expect((await subs(page))[0].fields.email).toBe('alex@acmepay.con');
 });
