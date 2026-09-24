@@ -723,7 +723,7 @@
           <div class="usv-actions">
             <button type="submit" class="usv-btn" id="usv-submit">
               <span class="usv-btn-spin" aria-hidden="true"></span>
-              <span id="usv-submit-txt">Book my demo</span>
+              <span id="usv-submit-txt">Request a Demo</span>
             </button>
           </div>
         </section>
@@ -955,6 +955,14 @@
      reading the DOM, and a hidden control is still a control. */
   function trimSlash(p) { return String(p).replace(/\/+$/, '') || '/'; }
 
+  /* The nearest ancestor's answer for a wrapper attribute: true, false, or
+     null when no ancestor carries it. Shared by the switches a marketer types
+     into the Designer, so they all read "0", "false" and "False" the same. */
+  function pageSays(attr) {
+    var host = root.closest('[' + attr + ']');
+    return host ? !/^(0|false)?$/i.test((host.getAttribute(attr) || '').trim()) : null;
+  }
+
   function askRevenue() {
     if (window.USV_ASK_REVENUE === true) return true;
     if (/[?&]rev=1/.test(window.location.search)) return true;
@@ -966,11 +974,8 @@
        Trimmed and case-insensitive: this is typed into a Designer field by
        hand, and "False" or a trailing space must not silently mean the
        opposite of what it says. */
-    var host = root.closest('[data-upserve-revenue]');
-    if (host) {
-      return !/^(0|false)?$/i.test(
-        (host.getAttribute('data-upserve-revenue') || '').trim());
-    }
+    var says = pageSays('data-upserve-revenue');
+    if (says !== null) return says;
 
     /* Trailing slashes trimmed on BOTH sides, so an entry written either way
        matches a visitor who arrived either way. Comparing the list raw is the
@@ -2108,6 +2113,25 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     $('usv-dot2').classList.remove('is-on'); $('usv-dot3').classList.remove('is-on'); });
   on($('usv-place-edit'), 'click', function () { goStep(1); });
 
+  /* A page that only ever gets new business can answer "Who are you?" for the
+     visitor: data-upserve-prospect = 1 on the wrapper (or ?prospect=1 to
+     preview). The prospect card is checked, not removed, so visitor_type still
+     reaches Default exactly as if they had tapped it — the form just opens on
+     the finder, with no Back to a question they never saw. */
+  if (pageSays('data-upserve-prospect') || /[?&]prospect=1/.test(window.location.search)) {
+    root.querySelector('input[value="prospect"]').checked = true;
+    S.visitor = 'prospect';
+    paintStatus();
+    $('usv-back1').hidden = true;
+    $('usv-dot1').hidden = true;
+    txt(step1.querySelector('.usv-eyebrow'), 'Step 1 of 2');
+    txt(step2.querySelector('.usv-eyebrow'), 'Step 2 of 2');
+    warmPlaces();
+    S.step = 1;
+    showPanel(step1);
+    $('usv-dot2').classList.add('is-on');
+  }
+
   /* The button names its own result, so it overwrites whatever is in the
      field rather than quietly doing nothing when something is typed. */
   on($('usv-newbtn'), 'click', function () { useNotListed(true); });
@@ -2441,7 +2465,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     var r = helpRoute();
     txt(submitTxt, r === 'SUPPORT' ? 'Send to support'
                  : r === 'AM'      ? 'Connect with the account team'
-                                   : 'Book my demo');
+                                   : 'Request a Demo');
   }
 
   function setBusy(b) {

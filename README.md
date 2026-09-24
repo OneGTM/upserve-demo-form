@@ -114,7 +114,7 @@ Webflow caps a Code Embed at
 and **truncates silently** past it. The readable source is ~114,000, so
 `build.js` runs it through terser (compress + mangle), minifies the CSS,
 collapses the markup, and shortens the `usv-*` class names, most-used first.
-Output is **48,397** — it fails loudly if an edit ever pushes it over.
+Output is **48,759** — it fails loudly if an edit ever pushes it over.
 
 Terser is worth ~8,300 characters on its own; without it the build still
 works but falls back to comment-and-whitespace stripping and splits into two
@@ -375,6 +375,24 @@ every page that never asked.
 names typed outside this repo, so none of them carry the `usv-` prefix the
 build minifies — they mean the same thing in the source and in the shipped
 embed, and a test asserts each one still works against the built file.
+
+### Skip "Who are you?" — for prospect-only pages
+
+A page that only gets new business (a paid landing page, say) can answer step 1
+for the visitor. Same wrapper attribute as the revenue switch:
+
+| Name | Value |
+|---|---|
+| `data-upserve-prospect` | `1` |
+
+The form then opens on the restaurant finder as "Step 1 of 2", with no Back
+button to a question the visitor never saw. "I'm new to Upserve" is checked
+behind the scenes, not removed, so `visitor_type=prospect` still reaches
+Default exactly as if they had tapped it, and routing is unchanged. `0` or
+`false` means no, same as the revenue switch. Preview with `?prospect=1`.
+
+It is independent of the revenue switch; a revenue page that also skips triage
+carries both attributes.
 
 ### Lead source — set per page
 
