@@ -385,10 +385,11 @@ for the visitor. Same wrapper attribute as the revenue switch:
 |---|---|
 | `data-upserve-prospect` | `1` |
 
-The form then opens on the restaurant finder as "Step 1 of 2", with no Back
-button to a question the visitor never saw. "I'm new to Upserve" is checked
+The form then opens on the restaurant finder as "Step 1 of 2", with a
+**Get Started** button and no Back button to a question the visitor never saw. "I'm new to Upserve" is checked
 behind the scenes, not removed, so `visitor_type=prospect` still reaches
-Default exactly as if they had tapped it, and routing is unchanged. `0` or
+Default exactly as if they had tapped it, routing is unchanged, and the
+`usv_form_visitor_type` dataLayer event still fires, so GTM sees a prospect. `0` or
 `false` means no, same as the revenue switch. Preview with `?prospect=1`.
 
 It is independent of the revenue switch; a revenue page that also skips triage
@@ -729,10 +730,10 @@ Step numbers in the event names count from 0; the visitor sees them as 1 to 3.
 | Event | Fires when |
 |---|---|
 | `usv_form_step0_view` | form renders (Step 1 of 3) |
-| `usv_form_visitor_type` | they say who they are; carries `visitor_type` |
+| `usv_form_visitor_type` | they say who they are, or a prospect-only page answers for them (fires right after `step0_view`); carries `visitor_type` |
 | `usv_form_place_selected` | a Google result or "not listed yet" is picked; carries `place_source` |
 | `usv_form_step2_view` | the details step is reached (Step 3 of 3) — the drop-off denominator |
-| `usv_form_submit` | a real submission goes to Default |
+| `usv_form_submit` | a real submission goes to Default; carries `visitor_type`, so GTM's `general_contact` exclusion works on every page |
 | `usv_form_blocked` | a trap fired (spam volume, without polluting Default); carries `reason` |
 
 `step2_view` and `submit` carry `place_source` and `place_verified`; `submit`

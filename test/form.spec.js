@@ -23,9 +23,10 @@ const HTML_REV = buildPage({ revenue: 'attribute' });
 /** When each page was rendered, so we can respect the real speed floor. */
 const openedAt = new WeakMap();
 
-/** Click the Continue that is actually on screen — step 0 and step 1 both have one. */
+/** Click the Continue that is actually on screen — step 0 and step 1 both have
+ *  one, and a prospect-only page labels step 1's Get Started. */
 async function clickContinue(page) {
-  await page.locator('button:visible').filter({ hasText: /continue/i }).first().click();
+  await page.locator('button:visible').filter({ hasText: /continue|get started/i }).first().click();
 }
 
 /** Open the form and clear the triage step as a prospect. */
@@ -1789,6 +1790,45 @@ test('a prospect-only page still sends visitor_type=prospect', async ({ page }) 
   expect(fields.visitor_type).toBe('prospect');
   expect(fields.routing_owner).toBe('AE');
   expect(fields.annual_revenue).toBe('1m_plus');
+});
+
+test('a prospect-only page labels its first button Get Started', async ({ page }) => {
+  await open(page, null, HTML_PROSPECT);
+  const btn = page.locator('button:visible').filter({ hasText: 'Get Started' });
+  await expect(btn).toHaveCount(1);
+  await expect(btn.locator('svg')).toHaveCount(1);
+  await expect(page.locator('button:visible').filter({ hasText: /continue/i })).toHaveCount(0);
+});
+
+/* GTM's general_contact trigger fires on submit unless visitor_type = prospect,
+   so every path has to put visitor_type in the dataLayer. */
+for (const [label, html] of [['a prospect-only page', HTML_PROSPECT], ['triage', null]]) {
+  test(label + ' pushes visitor_type=prospect to the dataLayer, on submit too',
+    async ({ page }) => {
+      await open(page, html ? null : 'prospect', html || HTML);
+      await pickRestaurant(page, 'Tautog');
+      await continueToStep2(page);
+      await page.locator('input[value="replacing_pos"]').check({ force: true });
+      if (html) await pickRevenue(page, '1m_plus');
+      await fillContact(page);
+      await submit(page);
+
+      await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+      const dl = await page.evaluate(() => window.__events);
+      const vt = dl.find((e) => e.event === 'usv_form_visitor_type');
+      const sub = dl.find((e) => e.event === 'usv_form_submit');
+      expect(vt && vt.visitor_type).toBe('prospect');
+      expect(sub.visitor_type).toBe('prospect');
+    });
+}
+
+test('a customer\'s submit carries visitor_type=current_customer', async ({ page }) => {
+  await walkTo(page, 'current_customer', 'other');
+  await submit(page);
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  const sub = (await page.evaluate(() => window.__events))
+    .find((e) => e.event === 'usv_form_submit');
+  expect(sub.visitor_type).toBe('current_customer');
 });
 
 test('data-upserve-prospect="0" keeps the triage step', async ({ page }) => {

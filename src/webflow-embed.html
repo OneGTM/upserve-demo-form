@@ -2126,6 +2126,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     $('usv-dot1').hidden = true;
     txt(step1.querySelector('.usv-eyebrow'), 'Step 1 of 2');
     txt(step2.querySelector('.usv-eyebrow'), 'Step 2 of 2');
+    $('usv-next').firstChild.nodeValue = 'Get Started';
     warmPlaces();
     S.step = 1;
     showPanel(step1);
@@ -2557,7 +2558,11 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     }
 
     syncHiddenFields();
+    /* visitor_type rides on submit itself: GTM's general_contact trigger
+       excludes prospects by it, and a prospect-only page never fires the
+       triage event that used to carry it. */
     track('submit', {
+      visitor_type  : S.visitor,
       place_source  : S.match,
       place_verified: String(S.verified),
       routing_owner : S.routing,          /* set by syncHiddenFields, both branches */
@@ -2655,6 +2660,8 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   function boot() {
     S.renderedAt = Date.now();
     track('step0_view');
+    /* Skipped triage still reports the answer it made for the visitor. */
+    if (S.visitor) track('visitor_type', { visitor_type: S.visitor });
     paintStatus();
     setIcon('search');
 
