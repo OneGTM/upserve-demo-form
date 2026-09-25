@@ -23,9 +23,10 @@ const HTML_REV = buildPage({ revenue: 'attribute' });
 /** When each page was rendered, so we can respect the real speed floor. */
 const openedAt = new WeakMap();
 
-/** Click the Continue that is actually on screen — step 0 and step 1 both have one. */
+/** Click the Continue that is actually on screen — step 0 and step 1 both have
+ *  one, and a prospect-only page labels step 1's Get Started. */
 async function clickContinue(page) {
-  await page.locator('button:visible').filter({ hasText: /continue/i }).first().click();
+  await page.locator('button:visible').filter({ hasText: /continue|get started/i }).first().click();
 }
 
 /** Open the form and clear the triage step as a prospect. */
@@ -54,7 +55,7 @@ async function submit(page) {
   if (elapsed < FLOOR_MS + 200) await page.waitForTimeout(FLOOR_MS + 200 - elapsed);
   // the label names the destination: demo, account team, or support
   await page.getByRole('button',
-    { name: /book my demo|connect with the account team|send to support/i }).click();
+    { name: /request a demo|connect with the account team|send to support/i }).click();
 }
 
 /** Type into the finder and pick the first real result. */
@@ -220,7 +221,7 @@ test('submitting under the speed floor blocks, and Default is never called',
     await page.clock.runFor(400);
 
     // ~1.2s of form-visible time: well inside the 3s floor
-    await page.getByRole('button', { name: /book my demo/i }).click();
+    await page.getByRole('button', { name: /request a demo/i }).click();
     await page.clock.runFor(500);
 
     await expect(page.getByText(/in touch shortly/i)).toBeVisible();
@@ -853,7 +854,7 @@ for (const topic of SUPPORT_TOPICS) {
     await page.locator(`input[value="${topic}"]`).check({ force: true });
 
     await expect(page.getByRole('button', { name: /send to support/i })).toBeVisible();
-    await expect(page.getByRole('button', { name: /book my demo/i })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /request a demo/i })).toHaveCount(0);
     await expect(page.getByText(/only used to/i)).toHaveCount(0);
   });
 }
@@ -869,7 +870,7 @@ for (const topic of AM_TOPICS) {
 
     await expect(page.getByRole('button', { name: /connect with the account team/i }))
       .toBeVisible();
-    await expect(page.getByRole('button', { name: /book my demo/i })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /request a demo/i })).toHaveCount(0);
     await expect(page.getByRole('button', { name: /send to support/i })).toHaveCount(0);
   });
 }
@@ -893,7 +894,7 @@ test('a prospect never sees the support label, whatever they pick', async ({ pag
   await continueToStep2(page);
   for (const v of ['brand_new_opening', 'replacing_pos', 'exploring']) {
     await page.locator(`input[value="${v}"]`).check({ force: true });
-    await expect(page.getByRole('button', { name: /book my demo/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /request a demo/i })).toBeVisible();
   }
 });
 
@@ -1755,4 +1756,82 @@ test('the file the build tells you to paste is committed, not ignored', () => {
   }
 
   expect(out.trim().split('\n').filter(Boolean)).toEqual([]);
+});
+
+/* ── pages that only get new business skip "Who are you?" ────────────────── */
+
+const HTML_PROSPECT = buildPage({ revenue: 'attribute', prospect: '1' });
+
+test('a prospect-only page opens on the finder with no triage and no way back to it',
+  async ({ page }) => {
+    await open(page, null, HTML_PROSPECT);
+    await expect(page.locator('[role="combobox"]')).toBeVisible();
+    await expect(page.getByText(/who are you/i)).toBeHidden();
+    await expect(page.getByText('Step 1 of 2')).toBeVisible();
+    await expect(page.getByRole('button', { name: /back/i })).toHaveCount(0);
+
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await expect(page.getByText('Step 2 of 2')).toBeVisible();
+    await revenueShown(page);
+  });
+
+test('a prospect-only page still sends visitor_type=prospect', async ({ page }) => {
+  await open(page, null, HTML_PROSPECT);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await page.locator('input[value="replacing_pos"]').check({ force: true });
+  await pickRevenue(page, '1m_plus');
+  await fillContact(page);
+  await submit(page);
+
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  const { fields } = (await submissions(page))[0];
+  expect(fields.visitor_type).toBe('prospect');
+  expect(fields.routing_owner).toBe('AE');
+  expect(fields.annual_revenue).toBe('1m_plus');
+});
+
+test('a prospect-only page labels its first button Get Started', async ({ page }) => {
+  await open(page, null, HTML_PROSPECT);
+  const btn = page.locator('button:visible').filter({ hasText: 'Get Started' });
+  await expect(btn).toHaveCount(1);
+  await expect(btn.locator('svg')).toHaveCount(1);
+  await expect(page.locator('button:visible').filter({ hasText: /continue/i })).toHaveCount(0);
+});
+
+/* GTM's general_contact trigger fires on submit unless visitor_type = prospect,
+   so every path has to put visitor_type in the dataLayer. */
+for (const [label, html] of [['a prospect-only page', HTML_PROSPECT], ['triage', null]]) {
+  test(label + ' pushes visitor_type=prospect to the dataLayer, on submit too',
+    async ({ page }) => {
+      await open(page, html ? null : 'prospect', html || HTML);
+      await pickRestaurant(page, 'Tautog');
+      await continueToStep2(page);
+      await page.locator('input[value="replacing_pos"]').check({ force: true });
+      if (html) await pickRevenue(page, '1m_plus');
+      await fillContact(page);
+      await submit(page);
+
+      await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+      const dl = await page.evaluate(() => window.__events);
+      const vt = dl.find((e) => e.event === 'usv_form_visitor_type');
+      const sub = dl.find((e) => e.event === 'usv_form_submit');
+      expect(vt && vt.visitor_type).toBe('prospect');
+      expect(sub.visitor_type).toBe('prospect');
+    });
+}
+
+test('a customer\'s submit carries visitor_type=current_customer', async ({ page }) => {
+  await walkTo(page, 'current_customer', 'other');
+  await submit(page);
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  const sub = (await page.evaluate(() => window.__events))
+    .find((e) => e.event === 'usv_form_submit');
+  expect(sub.visitor_type).toBe('current_customer');
+});
+
+test('data-upserve-prospect="0" keeps the triage step', async ({ page }) => {
+  await open(page, null, buildPage({ prospect: '0' }));
+  await expect(page.getByText(/who are you/i)).toBeVisible();
 });
