@@ -114,7 +114,7 @@ Webflow caps a Code Embed at
 and **truncates silently** past it. The readable source is ~114,000, so
 `build.js` runs it through terser (compress + mangle), minifies the CSS,
 collapses the markup, and shortens the `usv-*` class names, most-used first.
-Output is **48,759** — it fails loudly if an edit ever pushes it over.
+Output is **49,861** — it fails loudly if an edit ever pushes it over.
 
 Terser is worth ~8,300 characters on its own; without it the build still
 works but falls back to comment-and-whitespace stripping and splits into two

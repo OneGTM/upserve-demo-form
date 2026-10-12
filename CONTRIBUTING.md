@@ -71,16 +71,19 @@ stubbed, so it never touches a live service. For a manual look, open
 ## Editing the radio cards
 
 The thirteen option cards (who they are, restaurant status, help topic, revenue)
-are a table in the script, `CARDS`, not markup:
+are plain markup, one card per line, so every question and answer is in the
+page before any script runs. Google Ads asked for this: the form is HTML/CSS,
+and JavaScript only handles interaction. A test loads the embed with
+JavaScript off and fails if a card goes missing.
 
-```js
-status: ['restaurant_status',
-  'brand_new_opening;We’re opening a brand-new spot;Not open yet',
-  ...
+```html
+<div class="usv-card-opt"><input type="radio" id="usv-cstatus1" name="restaurant_status" value="brand_new_opening" aria-describedby="usv-cstatus1d"><label class="usv-card-hit" for="usv-cstatus1">We&rsquo;re opening a brand-new spot</label><span class="usv-card-d" id="usv-cstatus1d">Not open yet</span></div>
 ```
 
-`value ; title ; description`. Add a row and it renders. As markup this was
-3.8k of scaffolding around 0.7k of copy.
+Copy a line to add a card: give it a new `id` (and matching `for` and
+`aria-describedby`), and drop the `<span class="usv-card-d">` if it has no
+description. Keep each card on one line; the build keeps whitespace between
+inline tags, and the embed has little room to spare.
 
 If you add a value, add its routing in `CFG.ROUTING` or `CFG.ROUTING_HELP` —
 an unmapped value falls back to SDR or SUPPORT.
