@@ -11,6 +11,7 @@
  *   npm run check-live -- /book-a-demo /go/restaurant-pos
  *
  * STALE  an older committed build: re-paste.
+ * FAILED could not load the page, so it is unchecked.
  * EDITED close to a build but changed by hand in Webflow, with the difference.
  *        Port the edit into src/ or it is lost on the next paste.
  *
@@ -84,7 +85,8 @@ function knownBuilds() {
 
 async function get(url) {
   const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 (upserve-form check-live)' } });
-  return res.ok ? res.text() : '';
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.text();
 }
 
 async function pages(args) {
@@ -102,9 +104,17 @@ async function pages(args) {
 
   for (let i = 0; i < urls.length; i += 8) {
     const batch = urls.slice(i, i + 8);
-    const htmls = await Promise.all(batch.map((u) => get(u).catch(() => '')));
+    /* One retry, then report it: a page that failed to load is not a page
+       without the form, and skipping it hid /book-a-demo once. */
+    const htmls = await Promise.all(batch.map((u) =>
+      get(u).catch(() => get(u)).catch((e) => ({ failed: e.message || String(e) }))));
     batch.forEach((url, j) => {
       const html = htmls[j];
+      if (html && html.failed) {
+        stale++;
+        console.log('FAILED ' + url + '  (could not load: ' + html.failed + ')');
+        return;
+      }
       const hasForm = /id="?usv-(partner-)?form\b/.test(html);
       if (!hasForm) {
         if (explicit) { stale++; console.log('NONE   ' + url + '  (no Upserve form on the page)'); }
@@ -130,6 +140,6 @@ async function pages(args) {
     });
   }
 
-  console.log('\n' + seen + ' page(s) with the form, ' + stale + ' not on the current build.');
+  console.log('\n' + seen + ' page(s) with the form, ' + stale + ' need attention (stale, edited, missing or failed to load).');
   process.exit(stale ? 1 : 0);
 })();
