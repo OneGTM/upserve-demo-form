@@ -126,3 +126,17 @@ test('a typo stops the first submit once, then "No, it\'s right" lets it through
   await expect(page.getByText(/thanks, alex/i)).toBeVisible();
   expect((await subs(page))[0].fields.email).toBe('alex@acmepay.con');
 });
+
+test.describe('with JavaScript off', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('every field and option card is already in the page', async ({ page }) => {
+    await page.setContent(HTML);
+    await expect(page.getByLabel('Business name')).toBeVisible();
+    const count = (name) => page.locator('input[type="radio"][name="' + name + '"]').count();
+    expect(await count('worked_with_upserve_before')).toBe(2);
+    expect(await count('partner_type')).toBe(3);
+    expect(await count('restaurant_owners_per_month')).toBe(4);
+    await expect(page.getByText('Tech partner')).toBeVisible();
+  });
+});

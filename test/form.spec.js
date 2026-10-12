@@ -162,7 +162,7 @@ test('"just exploring" routes to SDR, everything else to AE', async ({ page }) =
   await open(page);
   await pickRestaurant(page, 'Tautog');
   await continueToStep2(page);
-  await page.locator('[data-status="exploring"]').click();
+  await page.locator('div:has(> [value="exploring"])').click();
   await fillContact(page);
   await submit(page);
 
@@ -516,7 +516,7 @@ test('clicking the description still selects the card', async ({ page }) => {
   await pickRestaurant(page, 'Tautog');
   await continueToStep2(page);
   // y=42 lands on the description row, not the title
-  await page.locator('[data-status="exploring"]').click({ position: { x: 120, y: 42 } });
+  await page.locator('div:has(> [value="exploring"])').click({ position: { x: 120, y: 42 } });
   await expect(page.locator('input[value="exploring"]')).toBeChecked();
 });
 
@@ -569,8 +569,8 @@ test('a customer is asked what they need, not where they are', async ({ page }) 
   await continueToStep2(page);
 
   await expect(page.getByText(/what do you need help with/i).first()).toBeVisible();
-  await expect(page.locator('[data-help="add_location"]')).toBeVisible();
-  await expect(page.locator('[data-status="brand_new_opening"]')).not.toBeVisible();
+  await expect(page.locator('div:has(> [value="add_location"])')).toBeVisible();
+  await expect(page.locator('div:has(> [value="brand_new_opening"])')).not.toBeVisible();
 });
 
 test('a prospect is asked where they are, not what they need', async ({ page }) => {
@@ -579,8 +579,8 @@ test('a prospect is asked where they are, not what they need', async ({ page }) 
   await continueToStep2(page);
 
   await expect(page.getByText(/where are you today/i).first()).toBeVisible();
-  await expect(page.locator('[data-status="brand_new_opening"]')).toBeVisible();
-  await expect(page.locator('[data-help="add_location"]')).not.toBeVisible();
+  await expect(page.locator('div:has(> [value="brand_new_opening"])')).toBeVisible();
+  await expect(page.locator('div:has(> [value="add_location"])')).not.toBeVisible();
 });
 
 /* The submit event is how GTM counts leads by owner. It has to carry the same
@@ -1834,4 +1834,28 @@ test('a customer\'s submit carries visitor_type=current_customer', async ({ page
 test('data-upserve-prospect="0" keeps the triage step', async ({ page }) => {
   await open(page, null, buildPage({ prospect: '0' }));
   await expect(page.getByText(/who are you/i)).toBeVisible();
+});
+
+/* Google Ads asked for the form to be plain HTML/CSS, with JavaScript only for
+   interaction. So every question and option has to be in the markup itself,
+   readable before any script runs. */
+test.describe('with JavaScript off', () => {
+  test.use({ javaScriptEnabled: false });
+
+  test('the first question and both answers are already in the page', async ({ page }) => {
+    await page.setContent(HTML);
+    await expect(page.getByText(/who are you/i)).toBeVisible();
+    await expect(page.getByText(/new to upserve/i)).toBeVisible();
+    await expect(page.getByText(/already an upserve customer/i)).toBeVisible();
+  });
+
+  test('every option card is in the markup, not built by script', async ({ page }) => {
+    await page.setContent(HTML_REV);
+    const count = (name) => page.locator('input[type="radio"][name="' + name + '"]').count();
+    expect(await count('visitor_type')).toBe(2);
+    expect(await count('restaurant_status')).toBe(3);
+    expect(await count('help_topic')).toBe(5);
+    expect(await count('annual_revenue')).toBe(3);
+    await expect(page.getByLabel('$300k to $1M')).toHaveCount(1);
+  });
 });
