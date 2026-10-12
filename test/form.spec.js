@@ -24,7 +24,7 @@ const HTML_REV = buildPage({ revenue: 'attribute' });
 const openedAt = new WeakMap();
 
 /** Click the Continue that is actually on screen — step 0 and step 1 both have
- *  one, and a prospect-only page labels step 1's Get Started. */
+ *  one, and a prospect-only page labels step 1's Get started. */
 async function clickContinue(page) {
   await page.locator('button:visible').filter({ hasText: /continue|get started/i }).first().click();
 }
@@ -1792,9 +1792,9 @@ test('a prospect-only page still sends visitor_type=prospect', async ({ page }) 
   expect(fields.annual_revenue).toBe('1m_plus');
 });
 
-test('a prospect-only page labels its first button Get Started', async ({ page }) => {
+test('a prospect-only page labels its first button Get started', async ({ page }) => {
   await open(page, null, HTML_PROSPECT);
-  const btn = page.locator('button:visible').filter({ hasText: 'Get Started' });
+  const btn = page.locator('button:visible').filter({ hasText: 'Get started' });
   await expect(btn).toHaveCount(1);
   await expect(btn.locator('svg')).toHaveCount(1);
   await expect(page.locator('button:visible').filter({ hasText: /continue/i })).toHaveCount(0);
@@ -1857,5 +1857,16 @@ test.describe('with JavaScript off', () => {
     expect(await count('help_topic')).toBe(5);
     expect(await count('annual_revenue')).toBe(3);
     await expect(page.getByLabel('$300k to $1M')).toHaveCount(1);
+  });
+
+  test('the support links are in the markup and open in a new tab', async ({ page }) => {
+    await page.setContent(HTML);
+    const hrefs = await page.locator('section[aria-live] ul a').evaluateAll((as) =>
+      as.map((a) => [a.getAttribute('href'), a.target, a.rel]));
+    expect(hrefs).toEqual([
+      ['https://help.upserve.com/s/', '_blank', 'noopener'],
+      ['https://hq.upserve.com/', '_blank', 'noopener'],
+      ['https://billing.stripe.com/p/login/eVaaHk4Wi1ib8mcaEE', '_blank', 'noopener']
+    ]);
   });
 });

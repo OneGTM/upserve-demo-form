@@ -46,7 +46,6 @@
    =========================================================================== */
 #usv-demo{
   --usv-yellow:#ffcd04;
-  --usv-yellow-mid:#fbd872;
   --usv-yellow-soft:#f5e1a4;
   --usv-black:#000000;
   /* Text is the brand black, and the supporting greys are straight tints of
@@ -428,14 +427,6 @@
 #usv-demo .usv-btn:active{transform:translateY(2px);box-shadow:0 0 0 0 var(--usv-black);}
 #usv-demo .usv-btn:focus-visible{outline:3px solid rgba(20,19,18,.4);outline-offset:2px;}
 #usv-demo .usv-btn[disabled]{opacity:.55;cursor:not-allowed;box-shadow:none;transform:none;}
-#usv-demo .usv-btn-ghost{
-  width:auto;margin-top:14px;
-  background:none;border:0;box-shadow:none;padding:6px 0;
-  font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--usv-ink-2);text-decoration:underline;text-underline-offset:3px;
-}
-#usv-demo .usv-btn-ghost:hover{color:var(--usv-ink);filter:none;}
-#usv-demo .usv-btn-ghost:active{transform:none;}
 #usv-demo .usv-btn .usv-btn-spin{
   width:15px;height:15px;border-radius:50%;
   border:2px solid rgba(0,0,0,.25);border-top-color:var(--usv-black);
@@ -752,7 +743,15 @@
         <h2 class="usv-h" id="usv-cust-h">You&rsquo;ll get help <em>faster</em> here.</h2>
         <p class="usv-sub" id="usv-cust-sub">This form reaches our sales team, who can&rsquo;t see your
           account. Support can.</p>
-        <ul class="usv-links" id="usv-cust-links"></ul>
+        <!-- Where an existing customer actually gets helped, all three from
+             upserve.com's own footer. A wrong link sends a frustrated customer
+             back to this form, so check them before launch. There is no support
+             phone line: the Help Center routes to 24/7 chat. -->
+        <ul class="usv-links" id="usv-cust-links">
+          <li><a href="https://help.upserve.com/s/" target="_blank" rel="noopener">Help Center<span>Guides, and 24/7 live chat</span></a></li>
+          <li><a href="https://hq.upserve.com/" target="_blank" rel="noopener">Sign in<span>Your account and POS</span></a></li>
+          <li><a href="https://billing.stripe.com/p/login/eVaaHk4Wi1ib8mcaEE" target="_blank" rel="noopener">Billing<span>Invoices and payment method</span></a></li>
+        </ul>
       </section>
 
 
@@ -779,6 +778,16 @@
 <script>
 /* ===========================================================================
    UPSERVE DEMO FORM — logic
+
+   Run this as it is: inline, right after the markup. Do NOT defer it until
+   the first interaction (Google Ads asked for JS only on interaction, and the
+   markup above already is plain HTML/CSS). At load this script:
+     - opens prospect-only pages on step 2, so delaying it flashes step 1
+     - captures UTMs / gclid before the visitor can leave
+     - starts the submit-speed clock and fires the step0_view event
+     - removes the revenue field on pages that do not ask for it
+   The heavy part, Google Maps (~1MB), already waits for interaction.
+   See README > Google Ads.
    =========================================================================== */
 (function () {
   'use strict';
@@ -868,18 +877,6 @@
     },
 
 
-    /* Where an existing customer actually gets helped. These are the only
-       thing on the off-ramp that has to be right — a wrong number sends a
-       frustrated customer back to this form. Check them before launch. */
-    /* All three are taken from upserve.com's own footer. There is no support
-       phone line to list: the Help Center routes to 24/7 chat in the browser
-       or the POS app, which is what "reach someone right now" means here. */
-    SUPPORT : [
-      ['Help Center', 'https://help.upserve.com/s/', 'Guides, and 24/7 live chat'],
-      ['Sign in',     'https://hq.upserve.com/',   'Your account and POS'],
-      ['Billing',     'https://billing.stripe.com/p/login/eVaaHk4Wi1ib8mcaEE',
-                                                   'Invoices and payment method']
-    ],
 
     /* -- Annual revenue ----------------------------------------------------
        The revenue question is OFF everywhere by default. Four ways to turn it
@@ -1910,25 +1907,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   var step0 = $('usv-step0');
   var outCust = $('usv-out-cust');
 
-  /* Support routes are built from CFG.SUPPORT so there is one place to fix
-     them, and so a wrong link cannot hide in the markup. */
-  (function renderSupport() {
-    var ul = $("usv-cust-links"), i, li, a2;
-    if (!ul) return;
-    for (i = 0; i < CFG.SUPPORT.length; i++) {
-      li = document.createElement("li");
-      a2 = document.createElement("a");
-      a2.href = CFG.SUPPORT[i][1];
-      if (CFG.SUPPORT[i][1].indexOf("http") === 0) { a2.target = "_blank"; a2.rel = "noopener"; }
-      a2.appendChild(document.createTextNode(CFG.SUPPORT[i][0]));
-      var sp = document.createElement("span");
-      sp.appendChild(document.createTextNode(CFG.SUPPORT[i][2]));
-      a2.appendChild(sp);
-      li.appendChild(a2);
-      ul.appendChild(li);
-    }
-  }());
-
   function showPanel(el) {
     var panels = [step0, step1, step2, outCust, donePanel], i;
     for (i = 0; i < panels.length; i++) {
@@ -2078,7 +2056,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     $('usv-dot1').hidden = true;
     txt(step1.querySelector('.usv-eyebrow'), 'Step 1 of 2');
     txt(step2.querySelector('.usv-eyebrow'), 'Step 2 of 2');
-    $('usv-next').firstChild.nodeValue = 'Get Started';
+    $('usv-next').firstChild.nodeValue = 'Get started';
     warmPlaces();
     S.step = 1;
     showPanel(step1);
