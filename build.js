@@ -27,6 +27,7 @@ const SRC = path.join(ROOT, 'src', 'webflow-embed.html');
 const OUT_DIR = path.join(ROOT, 'webflow');
 
 const EMBED_LIMIT = 50000;
+const SPARE_WARN = 1500;   // headroom below which the build warns
 
 /* ---------------------------------------------------------------------------
    A single scanner walks the JS once, classifying every character as code,
@@ -46,7 +47,12 @@ function minifyJs(src) {
          are 138 under Webflow's cap. Semantics are unchanged, and the suite
          drives this output rather than the source. */
       const out = execFileSync(bin,
-        [tmp, '--compress', 'passes=3', '--mangle', '--format', 'quote_style=1'],
+        /* ecma 2015: every browser that runs Webflow runs ES2015, and it lets
+           terser turn `function () {}` callbacks into arrows. unsafe_arrows
+           only skips functions that use `this` or `arguments`; none of ours are
+           constructed with `new`, which is the case it is named for. */
+        [tmp, '--ecma', '2015', '--compress', 'passes=3,unsafe_arrows=true,unsafe_methods=true',
+         '--mangle', '--format', 'quote_style=1'],
         { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
       fs.unlinkSync(tmp);
       if (out && out.trim()) return out.trim();
@@ -214,6 +220,13 @@ function minifyHtml(html) {
     .replace(/\s*\n\s*/g, ' ')
     .replace(/\s{2,}/g, ' ')
     .replace(/\s+>/g, '>')
+    /* Quotes are optional around a value with no space, quote, `=`, `<`, `>`,
+       backtick or `/`. A value right before `/>` keeps them: unquoted, the
+       parser reads `stroke-width=1.9/>` as the value `1.9/`. Worth ~700
+       characters across the markup. */
+    .replace(/="([A-Za-z0-9_.:-]+)"(?!\/)/g, '=$1')
+    /* text is an input's default type */
+    .replace(/ type=text\b/g, '')
     .trim();
 }
 
@@ -714,6 +727,13 @@ if (global.__usvSplit) {
   console.log('  PASTE THIS into Webflow:\n');
   console.log('  ok    webflow/embed.html'.padEnd(32) + String(embed.length).padStart(6) +
               ' / ' + EMBED_LIMIT + '  (' + spare + ' spare)');
+  /* A copy edit can eat a few hundred characters. Say so while there is still
+     room to trim, not on the day the build splits into two pastes. */
+  if (spare < SPARE_WARN) {
+    console.warn('\n  warn: under ' + SPARE_WARN + ' characters left before Webflow\'s cap.' +
+                 ' Trim before adding copy, or the next build splits into two embeds.');
+    if (process.env.GITHUB_ACTIONS) console.log('::warning::Embed has only ' + spare + ' characters spare');
+  }
 }
 /* `npm run copy` used to be `pbcopy < webflow/embed.html`, which dies with a
    shell error the day the form crosses the cap and that file stops existing.

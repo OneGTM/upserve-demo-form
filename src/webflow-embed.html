@@ -46,7 +46,6 @@
    =========================================================================== */
 #usv-demo{
   --usv-yellow:#ffcd04;
-  --usv-yellow-mid:#fbd872;
   --usv-yellow-soft:#f5e1a4;
   --usv-black:#000000;
   /* Text is the brand black, and the supporting greys are straight tints of
@@ -353,8 +352,8 @@
 #usv-demo .usv-cards--row{grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));}
 #usv-demo .usv-cards--row .usv-card-opt{padding:12px 10px;}
 #usv-demo .usv-cards--row .usv-card-hit{justify-content:center;gap:0;}
-#usv-demo .usv-cards--row .usv-mark{display:none;}
-#usv-demo .usv-cards--row .usv-card-t{font-size:14px;text-align:center;}
+#usv-demo .usv-cards--row .usv-card-hit::before{display:none;}
+#usv-demo .usv-cards--row .usv-card-hit{font-size:14px;text-align:center;}
 
 #usv-demo .usv-card-opt{
   position:relative;
@@ -371,7 +370,8 @@
 #usv-demo .usv-card-opt input{
   position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none;
 }
-#usv-demo .usv-mark{
+#usv-demo .usv-card-hit::before{
+  content:"";
   flex:0 0 19px;width:19px;height:19px;border-radius:50%;
   border:1.5px solid var(--usv-line);background:var(--usv-paper);
   margin-top:1px;position:relative;
@@ -381,12 +381,12 @@
   border-color:var(--usv-ink);background:#fffdf5;
   box-shadow:inset 0 0 0 1px var(--usv-ink);
 }
-#usv-demo .usv-card-opt.is-on .usv-mark{border-color:var(--usv-ink);background:var(--usv-yellow);}
-#usv-demo .usv-card-opt.is-on .usv-mark::after{
-  content:"";position:absolute;inset:4px;border-radius:50%;background:var(--usv-ink);
+#usv-demo .usv-card-opt.is-on .usv-card-hit::before{
+  /* yellow ring, ink dot: an inset shadow does what a nested ::after did */
+  border-color:var(--usv-ink);background:var(--usv-ink);box-shadow:inset 0 0 0 4px var(--usv-yellow);
 }
 #usv-demo .usv-card-opt:focus-within{box-shadow:0 0 0 3px rgba(255,205,4,.42);border-color:var(--usv-ink);}
-#usv-demo .usv-card-t{font-weight:700;font-size:15px;line-height:1.35;color:var(--usv-ink);}
+#usv-demo .usv-card-hit{font-weight:700;font-size:15px;line-height:1.35;color:var(--usv-ink);}
 #usv-demo .usv-card-d{
   display:block;font-size:13px;line-height:1.4;color:var(--usv-ink-3);
   margin-top:2px;padding-left:31px;pointer-events:none;
@@ -427,14 +427,6 @@
 #usv-demo .usv-btn:active{transform:translateY(2px);box-shadow:0 0 0 0 var(--usv-black);}
 #usv-demo .usv-btn:focus-visible{outline:3px solid rgba(20,19,18,.4);outline-offset:2px;}
 #usv-demo .usv-btn[disabled]{opacity:.55;cursor:not-allowed;box-shadow:none;transform:none;}
-#usv-demo .usv-btn-ghost{
-  width:auto;margin-top:14px;
-  background:none;border:0;box-shadow:none;padding:6px 0;
-  font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--usv-ink-2);text-decoration:underline;text-underline-offset:3px;
-}
-#usv-demo .usv-btn-ghost:hover{color:var(--usv-ink);filter:none;}
-#usv-demo .usv-btn-ghost:active{transform:none;}
 #usv-demo .usv-btn .usv-btn-spin{
   width:15px;height:15px;border-radius:50%;
   border:2px solid rgba(0,0,0,.25);border-top-color:var(--usv-black);
@@ -561,8 +553,10 @@
           <h2 class="usv-h" id="usv-h0">Who are <em>you</em>?</h2>
 
           <div class="usv-field" id="usv-f-visitor">
-            <fieldset class="usv-cards" data-cards="visitor">
+            <fieldset class="usv-cards">
               <legend class="usv-sr">New or existing customer</legend>
+              <div class="usv-card-opt"><input type="radio" id="usv-cvisitor1" name="visitor_type" value="prospect" aria-describedby="usv-cvisitor1d"><label class="usv-card-hit" for="usv-cvisitor1">I&rsquo;m new to Upserve</label><span class="usv-card-d" id="usv-cvisitor1d">Exploring, comparing, or switching</span></div>
+              <div class="usv-card-opt"><input type="radio" id="usv-cvisitor2" name="visitor_type" value="current_customer" aria-describedby="usv-cvisitor2d"><label class="usv-card-hit" for="usv-cvisitor2">I&rsquo;m already an Upserve customer</label><span class="usv-card-d" id="usv-cvisitor2d">Help, another location, or an upgrade</span></div>
             </fieldset>
             <p class="usv-err" id="usv-visitor-err">Pick the one that fits.</p>
           </div>
@@ -647,8 +641,11 @@
           <h2 class="usv-h" id="usv-h2">Where are you <em>today</em>?</h2>
 
           <div class="usv-field" id="usv-f-status">
-            <fieldset class="usv-cards" data-cards="status">
+            <fieldset class="usv-cards">
               <legend class="usv-sr">Restaurant status</legend>
+              <div class="usv-card-opt"><input type="radio" id="usv-cstatus1" name="restaurant_status" value="brand_new_opening" aria-describedby="usv-cstatus1d"><label class="usv-card-hit" for="usv-cstatus1">We&rsquo;re opening a brand-new spot</label><span class="usv-card-d" id="usv-cstatus1d">Not open yet</span></div>
+              <div class="usv-card-opt"><input type="radio" id="usv-cstatus2" name="restaurant_status" value="replacing_pos" aria-describedby="usv-cstatus2d"><label class="usv-card-hit" for="usv-cstatus2">We&rsquo;re replacing our current POS</label><span class="usv-card-d" id="usv-cstatus2d">Open on something else</span></div>
+              <div class="usv-card-opt"><input type="radio" id="usv-cstatus3" name="restaurant_status" value="exploring" aria-describedby="usv-cstatus3d"><label class="usv-card-hit" for="usv-cstatus3">We&rsquo;re just exploring</label><span class="usv-card-d" id="usv-cstatus3d">No firm timeline</span></div>
             </fieldset>
             <p class="usv-err" id="usv-status-err">Pick the one that sounds like you.</p>
           </div>
@@ -657,8 +654,13 @@
                Only one of these is ever visible, and only the visible one is
                validated or submitted. -->
           <div class="usv-field" id="usv-f-help" hidden>
-            <fieldset class="usv-cards" data-cards="help">
+            <fieldset class="usv-cards">
               <legend class="usv-sr">What do you need help with</legend>
+              <div class="usv-card-opt"><input type="radio" id="usv-chelp1" name="help_topic" value="add_location"><label class="usv-card-hit" for="usv-chelp1">Add a new location</label></div>
+              <div class="usv-card-opt"><input type="radio" id="usv-chelp2" name="help_topic" value="add_products"><label class="usv-card-hit" for="usv-chelp2">Add new products</label></div>
+              <div class="usv-card-opt"><input type="radio" id="usv-chelp3" name="help_topic" value="product_help"><label class="usv-card-hit" for="usv-chelp3">Product help</label></div>
+              <div class="usv-card-opt"><input type="radio" id="usv-chelp4" name="help_topic" value="account_billing"><label class="usv-card-hit" for="usv-chelp4">Account or billing</label></div>
+              <div class="usv-card-opt"><input type="radio" id="usv-chelp5" name="help_topic" value="other"><label class="usv-card-hit" for="usv-chelp5">Something else</label></div>
             </fieldset>
             <p class="usv-err" id="usv-help-err">Let us know what you need.</p>
           </div>
@@ -672,9 +674,12 @@
               <span class="usv-label" id="usv-rev-l">Annual revenue<span class="usv-req">*</span></span>
               <span class="usv-hint" id="usv-rev-hint">Approximate, per location</span>
             </div>
-            <fieldset class="usv-cards usv-cards--row" data-cards="revenue"
+            <fieldset class="usv-cards usv-cards--row"
                       aria-labelledby="usv-rev-l usv-rev-hint">
               <legend class="usv-sr">Annual revenue</legend>
+              <div class="usv-card-opt"><input type="radio" id="usv-crevenue1" name="annual_revenue" value="under_300k"><label class="usv-card-hit" for="usv-crevenue1">Under $300k</label></div>
+              <div class="usv-card-opt"><input type="radio" id="usv-crevenue2" name="annual_revenue" value="300k_1m"><label class="usv-card-hit" for="usv-crevenue2">$300k to $1M</label></div>
+              <div class="usv-card-opt"><input type="radio" id="usv-crevenue3" name="annual_revenue" value="1m_plus"><label class="usv-card-hit" for="usv-crevenue3">$1M+</label></div>
             </fieldset>
             <p class="usv-err" id="usv-rev-err">Pick the range that fits.</p>
           </div>
@@ -738,7 +743,15 @@
         <h2 class="usv-h" id="usv-cust-h">You&rsquo;ll get help <em>faster</em> here.</h2>
         <p class="usv-sub" id="usv-cust-sub">This form reaches our sales team, who can&rsquo;t see your
           account. Support can.</p>
-        <ul class="usv-links" id="usv-cust-links"></ul>
+        <!-- Where an existing customer actually gets helped, all three from
+             upserve.com's own footer. A wrong link sends a frustrated customer
+             back to this form, so check them before launch. There is no support
+             phone line: the Help Center routes to 24/7 chat. -->
+        <ul class="usv-links" id="usv-cust-links">
+          <li><a href="https://help.upserve.com/s/" target="_blank" rel="noopener">Help Center<span>Guides, and 24/7 live chat</span></a></li>
+          <li><a href="https://hq.upserve.com/" target="_blank" rel="noopener">Sign in<span>Your account and POS</span></a></li>
+          <li><a href="https://billing.stripe.com/p/login/eVaaHk4Wi1ib8mcaEE" target="_blank" rel="noopener">Billing<span>Invoices and payment method</span></a></li>
+        </ul>
       </section>
 
 
@@ -765,6 +778,16 @@
 <script>
 /* ===========================================================================
    UPSERVE DEMO FORM — logic
+
+   Run this as it is: inline, right after the markup. Do NOT defer it until
+   the first interaction (Google Ads asked for JS only on interaction, and the
+   markup above already is plain HTML/CSS). At load this script:
+     - opens prospect-only pages on step 2, so delaying it flashes step 1
+     - captures UTMs / gclid before the visitor can leave
+     - starts the submit-speed clock and fires the step0_view event
+     - removes the revenue field on pages that do not ask for it
+   The heavy part, Google Maps (~1MB), already waits for interaction.
+   See README > Google Ads.
    =========================================================================== */
 (function () {
   'use strict';
@@ -854,18 +877,6 @@
     },
 
 
-    /* Where an existing customer actually gets helped. These are the only
-       thing on the off-ramp that has to be right — a wrong number sends a
-       frustrated customer back to this form. Check them before launch. */
-    /* All three are taken from upserve.com's own footer. There is no support
-       phone line to list: the Help Center routes to 24/7 chat in the browser
-       or the POS app, which is what "reach someone right now" means here. */
-    SUPPORT : [
-      ['Help Center', 'https://help.upserve.com/s/', 'Guides, and 24/7 live chat'],
-      ['Sign in',     'https://hq.upserve.com/',   'Your account and POS'],
-      ['Billing',     'https://billing.stripe.com/p/login/eVaaHk4Wi1ib8mcaEE',
-                                                   'Invoices and payment method']
-    ],
 
     /* -- Annual revenue ----------------------------------------------------
        The revenue question is OFF everywhere by default. Four ways to turn it
@@ -1041,68 +1052,6 @@
     routing      : '',
     demo         : false
   };
-
-  /* =========================================================================
-     Radio cards
-
-     Eleven cards across three questions, identical but for three strings each.
-     As markup that was 3.8k of scaffolding around 0.7k of actual copy, so it
-     lives here as a table instead — smaller in the embed, and easier to read
-     and edit than eleven near-identical blocks.
-
-         value ; title ; description
-
-     These strings are our own config, never user input, so they are safe to
-     interpolate. Anything a visitor types still goes through textContent.
-     ========================================================================= */
-  var CARDS = {
-    visitor: ['visitor_type',
-      'prospect;I\u2019m new to Upserve;Exploring, comparing, or switching',
-      'current_customer;I\u2019m already an Upserve customer;Help, another location, or an upgrade'],
-
-    status: ['restaurant_status',
-      'brand_new_opening;We\u2019re opening a brand-new spot;Not open yet',
-      'replacing_pos;We\u2019re replacing our current POS;Open on something else',
-      'exploring;We\u2019re just exploring;No firm timeline'],
-
-    /* Values stay as they were when this was a dropdown; only the presentation
-       changed, so nothing downstream has to be remapped. */
-    revenue: ['annual_revenue',
-      'under_300k;Under $300k;',
-      '300k_1m;$300k to $1M;',
-      '1m_plus;$1M+;'],
-
-    help: ['help_topic',
-      'add_location;Add a new location;',
-      'add_products;Add new products;',
-      'product_help;Product help;',
-      'account_billing;Account or billing;',
-      'other;Something else;']
-  };
-
-  (function buildCards() {
-    var g, box, rows, name, i, p, id, out;
-    for (g in CARDS) {
-      box = root.querySelector('fieldset[data-cards="' + g + '"]');
-      if (!box) continue;
-      rows = CARDS[g];
-      name = rows[0];
-      out = '';
-      for (i = 1; i < rows.length; i++) {
-        p = rows[i].split(';');
-        id = 'usv-c' + g + i;
-        out += '<div class="usv-card-opt" data-' + g + '="' + p[0] + '">' +
-          '<input type="radio" id="' + id + '" name="' + name + '" value="' + p[0] +
-          (p[2] ? '" aria-describedby="' + id + 'd">' : '">') +
-          '<label class="usv-card-hit" for="' + id + '">' +
-          '<span class="usv-mark" aria-hidden="true"></span>' +
-          '<span class="usv-card-t">' + p[1] + '</span></label>' +
-          (p[2] ? '<span class="usv-card-d" id="' + id + 'd">' + p[2] + '</span>' : '') +
-          '</div>';
-      }
-      box.insertAdjacentHTML('beforeend', out);
-    }
-  }());
 
   /* =========================================================================
      UTM — first touch persisted, last touch wins on the field itself
@@ -1958,25 +1907,6 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   var step0 = $('usv-step0');
   var outCust = $('usv-out-cust');
 
-  /* Support routes are built from CFG.SUPPORT so there is one place to fix
-     them, and so a wrong link cannot hide in the markup. */
-  (function renderSupport() {
-    var ul = $("usv-cust-links"), i, li, a2;
-    if (!ul) return;
-    for (i = 0; i < CFG.SUPPORT.length; i++) {
-      li = document.createElement("li");
-      a2 = document.createElement("a");
-      a2.href = CFG.SUPPORT[i][1];
-      if (CFG.SUPPORT[i][1].indexOf("http") === 0) { a2.target = "_blank"; a2.rel = "noopener"; }
-      a2.appendChild(document.createTextNode(CFG.SUPPORT[i][0]));
-      var sp = document.createElement("span");
-      sp.appendChild(document.createTextNode(CFG.SUPPORT[i][2]));
-      a2.appendChild(sp);
-      li.appendChild(a2);
-      ul.appendChild(li);
-    }
-  }());
-
   function showPanel(el) {
     var panels = [step0, step1, step2, outCust, donePanel], i;
     for (i = 0; i < panels.length; i++) {
@@ -2126,7 +2056,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     $('usv-dot1').hidden = true;
     txt(step1.querySelector('.usv-eyebrow'), 'Step 1 of 2');
     txt(step2.querySelector('.usv-eyebrow'), 'Step 2 of 2');
-    $('usv-next').firstChild.nodeValue = 'Get Started';
+    $('usv-next').firstChild.nodeValue = 'Get started';
     warmPlaces();
     S.step = 1;
     showPanel(step1);

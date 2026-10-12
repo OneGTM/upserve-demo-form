@@ -81,8 +81,24 @@ npm run copy      # builds, then puts the embed on your clipboard
 2. Drag an **Embed** element where the form should sit.
 3. Paste (the clipboard already holds `webflow/embed.html`).
 4. Save and publish.
+5. `npm run check-live` — confirms every page now runs this build (below).
 
 One paste. Nothing in Page Settings, no second embed, no external script.
+
+### Checking what is live
+
+Pasting is manual, so a merged PR is not a live one. `npm run check-live`
+fingerprints every committed build and finds it on upserve.com's pages:
+
+```
+ok     https://www.upserve.com/partners  partner form, 3d660a0 …
+STALE  https://www.upserve.com/…          an older build: re-paste
+EDITED https://www.upserve.com/…          changed by hand in Webflow, and how
+```
+
+`EDITED` means someone changed the embed in Webflow. Port that change into
+`src/` before the next paste, or the paste undoes it. Pass paths to check a
+few pages: `npm run check-live -- /book-a-demo /go/restaurant-pos`.
 
 ### Sizing the Embed element
 
@@ -114,7 +130,7 @@ Webflow caps a Code Embed at
 and **truncates silently** past it. The readable source is ~114,000, so
 `build.js` runs it through terser (compress + mangle), minifies the CSS,
 collapses the markup, and shortens the `usv-*` class names, most-used first.
-Output is **48,759** — it fails loudly if an edit ever pushes it over.
+Output is **47,989** — it fails loudly if an edit ever pushes it over.
 
 Terser is worth ~8,300 characters on its own; without it the build still
 works but falls back to comment-and-whitespace stripping and splits into two
@@ -130,6 +146,39 @@ the form's `id="usv-form"`, and every `aria-*` and `data-*` hook are untouched.
 `webflow/embed.html` by hand works but gets overwritten on the next build.
 
 ---
+
+## Google Ads: static markup, and what must stay as it is
+
+Google Ads asked for the forms to be HTML/CSS, with JavaScript only once
+someone interacts, to help landing-page Quality Score. Where that stands:
+
+| Part | How it loads |
+|---|---|
+| Every question, card, field and support link | Static markup. `test/*.spec.js` loads both embeds with JavaScript **off** and fails if any are missing |
+| Google Maps / Places (~1MB) | Not fetched until the visitor picks who they are or focuses the name field |
+| Default **Pixel** (`handshake.default.com`, visitor enrichment) | Async in each page's `<head>`, set in Webflow page settings. On all 85 pages with the form (checked 2026-10-12) |
+| Default **form SDK** (`import-cdn.default.com`) | Loaded async by the embed itself, unless the page already loads it |
+| The form script | Inline, runs at load |
+
+**Do not defer the form script to the first interaction.** At load it opens
+prospect-only pages on step 2 (deferred, those pages flash "Who are you?"
+first), captures UTMs and `gclid` before the visitor can leave, starts the
+submit-speed clock, fires `step0_view`, and removes the revenue field where
+it is not asked. It is ~30KB inline with no network request; the cost it
+would save is small.
+
+**Do not keep the Pixel waiting for interaction either.** Default's own advice:
+keep it async in the head, or early enrichment is lost and submissions can be
+missed.
+
+**Do not swap this for the HTML form from Default's Publish tab.** That
+form is Default's generic one. It has none of: the restaurant lookup and the
+~25 `place_*` fields, triage and `routing_owner`, the support off-ramp, the
+revenue and lead-source page switches, UTM/gclid capture, email typo rescue,
+the honeypot and speed floor, or the field names Default is already mapped to.
+
+Static markup costs characters, and the embed sits under Webflow's 50,000
+cap. `node build.js` warns below 1,500 spare.
 
 ## Configure
 
@@ -386,7 +435,7 @@ for the visitor. Same wrapper attribute as the revenue switch:
 | `data-upserve-prospect` | `1` |
 
 The form then opens on the restaurant finder as "Step 1 of 2", with a
-**Get Started** button and no Back button to a question the visitor never saw. "I'm new to Upserve" is checked
+**Get started** button and no Back button to a question the visitor never saw. "I'm new to Upserve" is checked
 behind the scenes, not removed, so `visitor_type=prospect` still reaches
 Default exactly as if they had tapped it, routing is unchanged, and the
 `usv_form_visitor_type` dataLayer event still fires, so GTM sees a prospect. `0` or
