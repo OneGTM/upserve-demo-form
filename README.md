@@ -26,6 +26,7 @@ a channel (`lead_source`), without a rebuild. See
 | `webflow/embed.names.json` | Generated. Minified class name → source name, for devtools. |
 | `preview.html` | Generated. Open locally to test the readable source. |
 | `prototype.html` | Generated. Shareable demo with Default and Google stubbed. |
+| `src/gate-embed.html` → `webflow/gate-embed.html` | The content gate, one embed for every gated asset. See [Content gate](#content-gate). |
 | `build.js` | Regenerates all of the above. `node build.js` |
 
 ---
@@ -63,6 +64,128 @@ npm run copy:partner   # builds, puts webflow/partner-embed.html on the clipboar
 ```
 
 Local look: `preview-partner.html` (generated, gitignored).
+
+---
+
+## Content gate
+
+A third embed for gated content (calculators, guides, reports):
+`src/gate-embed.html` → `webflow/gate-embed.html` (~13,000 characters, one
+paste). **The same file goes on every asset.** The page says which asset it is.
+
+Five fields, all required, and no scheduler: these are top-of-funnel leads.
+They fill it in, the content unlocks, done. Anyone who wants a demo uses the
+page's own "Book a demo" button, which opens the demo form and its normal flow.
+
+| Field | `name` |
+|---|---|
+| First / last name | `first_name`, `last_name` |
+| Work email | `email` |
+| Phone | `phone`, with `phone_e164` alongside |
+| Restaurant or group | `restaurant_name` (same name as the demo form, so it maps the same way) |
+
+Hidden, on every submission:
+
+| `name` | Value |
+|---|---|
+| `form_type` | `content_asset` |
+| `content_asset` | the asset name, from `data-upserve-asset` |
+| `content_asset_id` | the form's HTML id, from `data-upserve-gate-id` |
+| `asset_details` | whatever the page sets in `window.usvGateDetails` (the calculator's numbers), else blank |
+| `lead_source` | `Inbound`, unless the page sets `data-upserve-lead-source` |
+| `lead_status_reason` | `Creation` |
+| `country` | `US` |
+| | plus `email_domain`, UTMs, `gclid`, `landing_page`, `referrer` |
+
+### Setting up a new asset
+
+Wrap the Embed element in a div and give the div these custom attributes:
+
+| Name | Example | |
+|---|---|---|
+| `data-upserve-asset` | `Guest Value Calculator` | required: the asset name, sent as `content_asset` |
+| `data-upserve-gate-id` | `guest-value-calc-gate` | the form's HTML id: asset + `-gate` |
+| `data-upserve-gate-button` | `Get my results` | button text; defaults to "Get it now" |
+
+Nothing changes in Default for a new asset. Every asset posts to the one
+"Content asset" form (`CFG.FORM_ID`), and the asset arrives as a field.
+
+**Before launch, set `CFG.FORM_ID`** to that form's id in Default. While it is
+`null` the form is not stamped and posts to whatever form the page's Default
+snippet boots, which on most pages is the demo form, scheduler and all.
+
+### What the page does with it
+
+The embed draws only the fields and the button. The page owns the headline,
+the modal and what "unlocked" looks like. On submit the embed shows "Thanks,
+Alex. You're all set." and fires:
+
+```js
+document.addEventListener('upserve:gate-unlocked', function (e) {
+  // e.detail = { asset: 'Guest Value Calculator', id: 'guest-value-calc-gate' }
+});
+```
+
+It unlocks 0.7s after handing the submission to Default, without waiting for
+Default's answer. A trap (honeypot, speed floor) also unlocks, because a fast
+human still deserves the content, but sends nothing.
+
+Find the embed from the page with `[data-upserve-asset]`, the wrapper. The
+embed's own ids are minified and change between builds.
+
+### Why it doesn't listen for Default's callbacks
+
+Default keeps **one** set of submission callbacks per page and fires them for
+every form on it. The calculator page carries this gate *and* the demo form.
+If the gate registered callbacks it would replace the demo form's, and the
+demo form would stop reacting to its scheduler. So the gate registers none,
+and the demo form ignores any callback that arrives while it isn't sending.
+That guard is in `webflow/embed.html`, so **re-paste the demo embed on any page
+that also gets the gate.**
+
+The gate's minified names start with `g` (the others use `u`), so its
+element ids can't collide with the demo form's on the same page. A test puts
+both on one page and fails on any duplicate id.
+
+### The calculator page
+
+Today `/resources/restaurant-guest-value-calculator` uses a native Webflow form
+(`guest-value-calc-gate`) and posts it to Salesforce Web-to-Lead from the page
+script. To move it onto Default:
+
+1. Delete the Webflow form block. Put a div with the three attributes above
+   where it was, and the gate embed inside it.
+2. In the page's calculator script, in the `gate popup` section, replace
+   `var form = $(FORM_ID)` and everything that reads it with:
+
+```js
+var box = document.querySelector("[data-upserve-asset]");
+if (!box) return;
+// ...build the modal as now, then:
+modal.querySelector(".uwc-modal-slot").appendChild(box);
+window.usvGateDetails = function () {           // the calculator's numbers, onto the lead
+  return "Regulars bring in today: " + fmt(last.base) + "/yr\n" +
+    "Value of knowing guests: " + fmt(last.total) + "/yr\n\nRestaurants:\n" +
+    last.concepts.map(function (c) { return "- " + c.name + " (" + c.type + "): $" + c.chk +
+      " avg check, " + c.vis + " visits/yr, " + c.reg + " regulars"; }).join("\n") +
+    "\n\nLevers:\n" + last.levers.map(function (l) { return "- " + l; }).join("\n");
+};
+document.addEventListener("upserve:gate-unlocked", function () { unlock(); setTimeout(closeModal, 1200); });
+```
+
+   Then delete the field-wrapping loop, the placeholder tweaks, the
+   `.w-form-done` observer and the whole Salesforce Web-to-Lead block
+   (`SFDC_OID` and `sendToSalesforce`). Leaving `SFDC_OID` set while the gate
+   posts to Default creates every lead twice. In `openModal`, focus
+   `box.querySelector("input")`.
+3. Re-paste `webflow/embed.html` in the page's "Book a demo" modal (see above).
+4. `npm run check-live -- /resources/restaurant-guest-value-calculator`.
+
+```bash
+npm run copy:gate   # builds, puts webflow/gate-embed.html on the clipboard
+```
+
+Local look: `preview-gate.html` (generated, gitignored).
 
 ---
 
