@@ -27,7 +27,8 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..');
 const SITE = 'https://www.upserve.com';
-const FILES = { 'webflow/embed.html': 'demo', 'webflow/partner-embed.html': 'partner' };
+const FILES = { 'webflow/embed.html': 'demo', 'webflow/partner-embed.html': 'partner',
+                'webflow/gate-embed.html': 'content gate' };
 
 const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8' });
 /* The build writes non-ASCII as \u2019 escapes; somewhere between the
@@ -115,7 +116,7 @@ async function pages(args) {
         console.log('FAILED ' + url + '  (could not load: ' + html.failed + ')');
         return;
       }
-      const hasForm = /id="?usv-(partner-)?form\b/.test(html);
+      const hasForm = /id="?usv-(partner-|gate-)?form\b|data-upserve-asset=/.test(html);
       if (!hasForm) {
         if (explicit) { stale++; console.log('NONE   ' + url + '  (no Upserve form on the page)'); }
         return;
