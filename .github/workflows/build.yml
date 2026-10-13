@@ -39,6 +39,13 @@ jobs:
             fs.writeFileSync('/tmp/partner.js', js);
           "
           node --check /tmp/partner.js
+          node -e "
+            const fs = require('fs');
+            const js = fs.readFileSync('webflow/gate-embed.html','utf8')
+              .match(/<script>([\s\S]*?)<\/script>/)[1];
+            fs.writeFileSync('/tmp/gate.js', js);
+          "
+          node --check /tmp/gate.js
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
