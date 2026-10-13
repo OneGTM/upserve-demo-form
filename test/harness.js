@@ -282,4 +282,36 @@ ${STUB}
 </body></html>`;
 }
 
-module.exports = { page, pageInWebflowColumn, partnerPage };
+/**
+ * The content gate: the built webflow/gate-embed.html under the same stub,
+ * inside a wrapper carrying the page's asset attributes. FORM_ID is seeded as
+ * for the partner form. `withDemo` also drops the demo embed on the page, the
+ * way the calculator carries both.
+ */
+function gatePage(opts = {}) {
+  const file = path.join(ROOT, 'webflow', 'gate-embed.html');
+  if (!fs.existsSync(file)) throw new Error('No webflow/gate-embed.html — run `node build.js` first');
+  const embed = fs.readFileSync(file, 'utf8').replace('FORM_ID:null', 'FORM_ID:515151');
+  const a = Object.assign({
+    'data-upserve-asset': 'Guest Value Calculator',
+    'data-upserve-gate-id': 'guest-value-calc-gate',
+    'data-upserve-gate-button': 'Get my results'
+  }, opts.attrs || {});
+  const attrs = Object.keys(a).filter((k) => a[k] != null)
+    .map((k) => ' ' + k + '="' + a[k] + '"').join('');
+  let demo = '';
+  if (opts.withDemo) {
+    const d = page();
+    demo = d.slice(d.indexOf(STUB) + STUB.length, d.lastIndexOf('</body>'));
+  }
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>content gate under test</title></head><body>
+${STUB}
+${opts.head || ''}
+<div${attrs}>${embed}</div>
+${demo}
+</body></html>`;
+}
+
+module.exports = { page, pageInWebflowColumn, partnerPage, gatePage };
