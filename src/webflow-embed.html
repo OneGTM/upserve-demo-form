@@ -2413,18 +2413,23 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     if (S.cbRegistered || !d || typeof d.registerSubmissionCallbacks !== 'function') return false;
     S.cbRegistered = true;
 
+    /* Default keeps one set of callbacks per page, and fires them for every
+       form on it. The content gate shares pages with this form, so a callback
+       that arrives while this form is not sending belongs to someone else. */
     d.registerSubmissionCallbacks({
       onSuccess: function () {
+        if (!S.submitting) return;
         if (S.routing === 'SUPPORT') { showSupportDone(); return; }
         S.submitted = true; setBusy(false); showDone();
       },
       onError: function (err) {
+        if (!S.submitting) return;
         setBusy(false);
         showFormError('We couldn’t send that through. Give it another go, or email ' +
                       'hello@upserve.com and we’ll set the demo up by hand.');
         if (window.console) console.error('[usv] Default submission failed', err);
       },
-      onSchedulerDisplayed: function () { S.submitted = true; setBusy(false); showDone(); },
+      onSchedulerDisplayed: function () { if (!S.submitting) return; S.submitted = true; setBusy(false); showDone(); },
 
       onMeetingBooked: function () {
         txt($('usv-done-copy'),
