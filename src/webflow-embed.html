@@ -1996,7 +1996,7 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   function paintBranch() {
     var c = isCustomer();
     $('usv-f-status').hidden = c;
-    $('usv-f-help').hidden = !c;
+    $('usv-f-help').hidden = !c || !!S.topicSet;
     if (ASK_REVENUE) {
       /* Prospects only. Someone who backs up and switches to the customer
          branch must not leave a range behind for Default to read. */
@@ -2014,7 +2014,8 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     clearErr($('usv-f-status'));
     clearErr($('usv-f-help'));
     if (ASK_REVENUE) clearErr($('usv-f-rev'));
-    txt($('usv-h2'), c ? 'What do you need help with?' : 'Where are you today?');
+    txt($('usv-h2'), S.topicSet ? 'How can we reach you?'
+                  : c ? 'What do you need help with?' : 'Where are you today?');
     paintSubmit();
   }
 
@@ -2043,14 +2044,12 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     $('usv-dot2').classList.remove('is-on'); $('usv-dot3').classList.remove('is-on'); });
   on($('usv-place-edit'), 'click', function () { goStep(1); });
 
-  /* A page that only ever gets new business can answer "Who are you?" for the
-     visitor: data-upserve-prospect = 1 on the wrapper (or ?prospect=1 to
-     preview). The prospect card is checked, not removed, so visitor_type still
-     reaches Default exactly as if they had tapped it — the form just opens on
-     the finder, with no Back to a question they never saw. */
-  if (pageSays('data-upserve-prospect') || /[?&]prospect=1/.test(window.location.search)) {
-    root.querySelector('input[value="prospect"]').checked = true;
-    S.visitor = 'prospect';
+  /* Answer "Who are you?" for the visitor and open on the finder, with no Back
+     to a question they never saw. The card is checked, not removed, so
+     visitor_type reaches Default exactly as if they had tapped it. */
+  function skipTriage(visitor) {
+    root.querySelector('input[value="' + visitor + '"]').checked = true;
+    S.visitor = visitor;
     paintStatus();
     $('usv-back1').hidden = true;
     $('usv-dot1').hidden = true;
@@ -2061,6 +2060,28 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     S.step = 1;
     showPanel(step1);
     $('usv-dot2').classList.add('is-on');
+  }
+
+  /* A page only customers reach (a renewal email, say) can answer "What do you
+     need help with?" as well: data-upserve-customer = add_products on the
+     wrapper. The value is a help_topic. The radio stays checked behind the
+     hidden question, so help_topic and routing_owner reach Default as usual.
+     A value that is not a topic does nothing, so a typo shows the normal form
+     rather than sending everyone down the wrong route. */
+  var custHost = root.closest('[data-upserve-customer]');
+  var custTopic = custHost ? (custHost.getAttribute('data-upserve-customer') || '').trim() : '';
+  for (var ci = 0; ci < helpInputs.length; ci++) {
+    if (helpInputs[ci].value === custTopic) {
+      helpInputs[ci].checked = true;
+      S.topicSet = true;
+    }
+  }
+
+  /* A page that only ever gets new business: data-upserve-prospect = 1 on the
+     wrapper (or ?prospect=1 to preview). */
+  if (S.topicSet) skipTriage('current_customer');
+  else if (pageSays('data-upserve-prospect') || /[?&]prospect=1/.test(window.location.search)) {
+    skipTriage('prospect');
   }
 
   /* The button names its own result, so it overwrites whatever is in the

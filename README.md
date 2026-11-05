@@ -444,6 +444,21 @@ Default exactly as if they had tapped it, routing is unchanged, and the
 It is independent of the revenue switch; a revenue page that also skips triage
 carries both attributes.
 
+### Skip both questions — for customer-only pages
+
+A page only current customers reach (a renewal email, say) can answer "Who are
+you?" and "What do you need help with?" for the visitor:
+
+| Name | Value |
+|---|---|
+| `data-upserve-customer` | a `help_topic` value, e.g. `add_products` |
+
+The form opens on the restaurant finder, then asks only for contact details.
+`visitor_type=current_customer`, `help_topic` and `routing_owner` reach Default
+as if the visitor had chosen them, so `add_products` follows the existing
+customer branch to the Existing Customers (AMs) queue. A value that is not a
+topic shows the normal form. It takes priority over `data-upserve-prospect`.
+
 ### Lead source — set per page
 
 Which channel a page's leads count as, sent as the hidden field `lead_source`.
