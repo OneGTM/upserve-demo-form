@@ -176,6 +176,7 @@ const STUB = `<script>
  *   { paths: ['/x'] }         seed CFG.REVENUE_PATHS, for the path route
  *   { leadSource: 'paid' }    a wrapper carrying data-upserve-lead-source
  *   { prospect: '1' }         a wrapper carrying data-upserve-prospect
+ *   { customer: 'add_products' }  a wrapper carrying data-upserve-customer
  */
 function page(opts = {}) {
   // The build emits ONE of two shapes: a single embed.html when it fits under
@@ -213,6 +214,7 @@ function page(opts = {}) {
     ? ' data-upserve-revenue="' + (rev === 'attribute' ? '1' : rev) + '"' : '';
   if (opts.leadSource != null) attr += ' data-upserve-lead-source="' + opts.leadSource + '"';
   if (opts.prospect != null) attr += ' data-upserve-prospect="' + opts.prospect + '"';
+  if (opts.customer != null) attr += ' data-upserve-customer="' + opts.customer + '"';
   const open = attr ? '<div' + attr + '>' : '';
   const close = attr ? '</div>' : '';
 

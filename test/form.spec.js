@@ -1831,6 +1831,35 @@ test('a customer\'s submit carries visitor_type=current_customer', async ({ page
   expect(sub.visitor_type).toBe('current_customer');
 });
 
+/* Renewal and customer landing pages: the page answers both questions, and the
+   lead still reaches Default looking like any other customer who chose it. */
+test('data-upserve-customer skips triage and the help question, and routes to AM',
+  async ({ page }) => {
+    await open(page, null, buildPage({ customer: 'add_products' }));
+    await expect(page.getByText(/who are you/i)).toBeHidden();
+    await pickRestaurant(page, 'Tautog');
+    await continueToStep2(page);
+    await expect(page.getByText(/what do you need help with/i)).toBeHidden();
+    await expect(page.getByRole('button', { name: /connect with the account team/i })).toBeVisible();
+    await fillContact(page);
+    await submit(page);
+
+    await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+    const { fields } = (await submissions(page))[0];
+    expect(fields.visitor_type).toBe('current_customer');
+    expect(fields.help_topic).toBe('add_products');
+    expect(fields.routing_owner).toBe('AM');
+    expect(fields.restaurant_status).toBeUndefined();
+    const vt = (await page.evaluate(() => window.__events))
+      .find((e) => e.event === 'usv_form_visitor_type');
+    expect(vt && vt.visitor_type).toBe('current_customer');
+  });
+
+test('data-upserve-customer with an unknown topic keeps the normal form', async ({ page }) => {
+  await open(page, null, buildPage({ customer: 'add_product' }));
+  await expect(page.getByText(/who are you/i)).toBeVisible();
+});
+
 test('data-upserve-prospect="0" keeps the triage step', async ({ page }) => {
   await open(page, null, buildPage({ prospect: '0' }));
   await expect(page.getByText(/who are you/i)).toBeVisible();
