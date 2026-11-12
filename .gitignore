@@ -15,6 +15,7 @@ config.local.json
 # again, re-ignore all of them and rotate the key.
 preview.html
 preview-partner.html
+preview-gate.html
 prototype.html
 
 # iCloud Drive conflict copies. It appends " 2" to a filename when two

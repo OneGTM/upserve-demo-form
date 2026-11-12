@@ -10,6 +10,7 @@
     "copy": "node build.js --copy",
     "copy:2": "node build.js --copy 2",
     "copy:partner": "node build.js --copy --partner",
+    "copy:gate": "node build.js --copy --gate",
     "check-live": "node scripts/check-live.js"
   },
   "devDependencies": {
