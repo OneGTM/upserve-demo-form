@@ -459,6 +459,10 @@ as if the visitor had chosen them, so `add_products` follows the existing
 customer branch to the Existing Customers (AMs) queue. A value that is not a
 topic shows the normal form. It takes priority over `data-upserve-prospect`.
 
+A link can do the same with no attribute: `/contact-us?customer=add_products`.
+The page attribute, when present, wins. This lets one `/contact-us` form serve
+campaign pages, for example `/contact-us?from=migration&customer=add_products`.
+
 ### Lead source — set per page
 
 Which channel a page's leads count as, sent as the hidden field `lead_source`.
@@ -561,9 +565,18 @@ either `restaurant_status` or `help_topic` depending on the branch, and
 `routing_owner`, plus `annual_revenue` on the prospect branch of a page that
 asks for it.
 
-**Attribution** — `lead_source` (set per page, see above), `utm_source`,
-`utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `gclid`,
-`landing_page`, `referrer`.
+**Attribution** — `lead_source` (set per page, see above), `from_page`,
+`utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`,
+`gclid`, `wbraid`, `gbraid`, `landing_page`, `referrer`.
+
+- `from_page` is the link's `?from=` value (`/contact-us?from=dual-pricing`).
+  It comes from this URL only and is never stored, so Default can route on it.
+  `landing_page` can't do that job: it is the visitor's first page ever.
+- `gclid`, `wbraid` and `gbraid` each have their own field. Google's lead import
+  accepts only a real GCLID, and the other two are iOS clicks. The newest ad
+  click wins and is kept 90 days (Google's import window), so it survives the
+  visitor browsing to another page before filling in the form. UTMs stay first
+  touch.
 
 **Place (filled when someone picks a Google result, blank otherwise)** —
 `place_id`, `place_verified`, `place_source`, `place_maps_url`,
@@ -839,7 +852,7 @@ the brand black (`#474747`, `#737373`) rather than off-palette hues.
   small text controls get a hit area well beyond their text. All of that is
   tested at widths from 320 to 1,440px, and in columns narrower than 320px; still
   worth one pass on a real handset.
-- **Size.** 48,397 of 50,000 — about 1,600 spare, and the binding constraint.
+- **Size.** 48,756 of 50,000 — about 1,250 spare, and the binding constraint.
   `node build.js` prints the current figure. Past the cap the build splits into
   two embeds automatically rather than letting Webflow truncate silently. The
   minifiers are already at their limit; what is left to trim is features. To

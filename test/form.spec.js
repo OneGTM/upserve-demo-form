@@ -360,6 +360,71 @@ test('UTM and gclid ride along with the lead', async ({ page }) => {
   expect(fields.gclid).toBe('ABC123');
 });
 
+/* Click IDs for Google's offline import: each in its own field, the newest
+   kept 90 days so it survives the visitor reaching the form on another page. */
+async function submitFrom(page, url, seed) {
+  await page.addInitScript((s) => {
+    try {
+      localStorage.removeItem('usv_attr');
+      if (s) localStorage.setItem('usv_click', JSON.stringify(s));
+      else localStorage.removeItem('usv_click');
+    } catch (e) { /* no-op */ }
+  }, seed || null);
+  await page.goto(url);
+  await page.setContent(HTML, { waitUntil: 'load' });
+  openedAt.set(page, Date.now());
+  await page.waitForTimeout(150);
+  await page.locator('input[value="prospect"]').check({ force: true });
+  await clickContinue(page);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await fillContact(page);
+  await submit(page);
+  await expect.poll(() => submissions(page).then((s) => s.length)).toBe(1);
+  return (await submissions(page))[0].fields;
+}
+
+test('an iOS click ID gets its own field, never gclid', async ({ page }) => {
+  const f = await submitFrom(page, 'https://example.com/go/pos?wbraid=WB1');
+  expect(f.wbraid).toBe('WB1');
+  expect(f.gclid).toBe('');
+  expect(f.gbraid).toBe('');
+});
+
+test('a recent ad click carries to a page without one', async ({ page }) => {
+  const f = await submitFrom(page, 'https://example.com/contact-us',
+    { gclid: 'OLD1', wbraid: '', gbraid: '', ts: Date.now() - 864e5 });
+  expect(f.gclid).toBe('OLD1');
+});
+
+test('a click older than 90 days is dropped', async ({ page }) => {
+  const f = await submitFrom(page, 'https://example.com/contact-us',
+    { gclid: 'OLD1', wbraid: '', gbraid: '', ts: Date.now() - 91 * 864e5 });
+  expect(f.gclid).toBe('');
+});
+
+test('a new click replaces the stored one', async ({ page }) => {
+  const f = await submitFrom(page, 'https://example.com/go/pos?gclid=NEW2',
+    { gclid: 'OLD1', wbraid: '', gbraid: '', ts: Date.now() - 864e5 });
+  expect(f.gclid).toBe('NEW2');
+});
+
+test('?from= reaches Default as from_page', async ({ page }) => {
+  const f = await submitFrom(page, 'https://example.com/contact-us?from=dual-pricing');
+  expect(f.from_page).toBe('dual-pricing');
+});
+
+test('no ?from= still sends from_page, empty', async ({ page }) => {
+  const f = await submitFrom(page, 'https://example.com/contact-us');
+  expect(f).toHaveProperty('from_page', '');
+});
+
+test('?customer= in the link skips both questions, like the page attribute', async ({ page }) => {
+  await page.goto('https://example.com/contact-us?from=migration&customer=add_products');
+  await page.setContent(HTML, { waitUntil: 'load' });
+  await expect(page.getByText(/who are you/i)).toBeHidden();
+});
+
 /* The channel is set per page on the wrapper, typed by hand in the Designer:
    it arrives trimmed but otherwise exactly as typed, and a page without it
    still sends the field so Default always has it to map. */

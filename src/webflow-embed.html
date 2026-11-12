@@ -872,6 +872,9 @@
       utm_term             : 'UTM term',
       utm_content          : 'UTM content',
       gclid                : 'Google Click ID',
+      wbraid               : 'Google click ID, iOS web (wbraid)',
+      gbraid               : 'Google click ID, iOS app (gbraid)',
+      from_page            : 'Sent from page (?from=)',
       landing_page         : 'Landing page',
       referrer             : 'Referrer'
     },
@@ -1057,6 +1060,7 @@
      UTM — first touch persisted, last touch wins on the field itself
      ========================================================================= */
   var UTM_KEYS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'];
+  var CLICK_KEYS = ['gclid','wbraid','gbraid'];
 
   function readAttribution() {
     var out = {}, i, k, v;
@@ -1067,7 +1071,30 @@
       v = qs.get(k);
       if (v) out[k] = v;
     }
-    out.gclid = qs.get('gclid') || qs.get('wbraid') || qs.get('gbraid') || '';
+    /* The page that sent them here (?from=dual-pricing): this URL only, never
+       stored, so Default can route on it. */
+    out.from_page = (qs.get('from') || '').trim();
+
+    /* Ad click IDs, each its own field: Google's lead import takes only a
+       real gclid; wbraid/gbraid are iOS clicks. The NEWEST click wins and is
+       kept 90 days (Google's import window), so it survives the visitor
+       browsing to another page before the form. */
+    var clk = {}, hit;
+    for (i = 0; i < 3; i++) {
+      k = CLICK_KEYS[i];
+      clk[k] = qs.get(k) || '';
+      if (clk[k]) hit = 1;
+    }
+    try {
+      if (hit) {
+        clk.ts = Date.now();
+        window.localStorage.setItem('usv_click', JSON.stringify(clk));
+      } else {
+        var c = JSON.parse(window.localStorage.getItem('usv_click') || '{}');
+        if (Date.now() - c.ts < 7776e6) clk = c;
+      }
+    } catch (e) { /* no storage: this URL's IDs only */ }
+    for (i = 0; i < 3; i++) out[CLICK_KEYS[i]] = clk[CLICK_KEYS[i]] || '';
 
     /* fall back to whatever we stored on first landing */
     try {
@@ -1076,13 +1103,11 @@
         k = UTM_KEYS[i];
         if (!out[k] && saved[k]) out[k] = saved[k];
       }
-      if (!out.gclid && saved.gclid) out.gclid = saved.gclid;
 
       /* store first touch only */
       if (!saved.first_seen) {
         var seed = {};
         for (i = 0; i < UTM_KEYS.length; i++) { seed[UTM_KEYS[i]] = out[UTM_KEYS[i]] || ''; }
-        seed.gclid        = out.gclid || '';
         seed.landing_page = window.location.href;
         seed.referrer     = document.referrer || '';
         seed.first_seen   = new Date().toISOString();
@@ -2069,7 +2094,9 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
      A value that is not a topic does nothing, so a typo shows the normal form
      rather than sending everyone down the wrong route. */
   var custHost = root.closest('[data-upserve-customer]');
-  var custTopic = custHost ? (custHost.getAttribute('data-upserve-customer') || '').trim() : '';
+  /* ...or the link does it: /contact-us?customer=add_products. */
+  var custTopic = ((custHost ? custHost.getAttribute('data-upserve-customer')
+    : new URLSearchParams(window.location.search).get('customer')) || '').trim();
   for (var ci = 0; ci < helpInputs.length; ci++) {
     if (helpInputs[ci].value === custTopic) {
       helpInputs[ci].checked = true;
@@ -2294,7 +2321,10 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
     v.utm_campaign = ATTR.utm_campaign || '';
     v.utm_term     = ATTR.utm_term     || '';
     v.utm_content  = ATTR.utm_content  || '';
-    v.gclid        = ATTR.gclid        || '';
+    v.gclid        = ATTR.gclid;
+    v.wbraid       = ATTR.wbraid;
+    v.gbraid       = ATTR.gbraid;
+    v.from_page    = ATTR.from_page;
     v.landing_page = ATTR.landing_page || '';
     v.referrer     = ATTR.referrer     || '';
 
