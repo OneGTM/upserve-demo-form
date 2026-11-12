@@ -264,6 +264,8 @@
       utm_term           : 'UTM term',
       utm_content        : 'UTM content',
       gclid              : 'Google Click ID',
+      wbraid             : 'Google click ID, iOS web (wbraid)',
+      gbraid             : 'Google click ID, iOS app (gbraid)',
       landing_page       : 'Landing page',
       referrer           : 'Referrer'
     }
@@ -311,6 +313,7 @@
 
   /* ---- attribution: first touch persisted, shared with the demo form ------ */
   var UTM_KEYS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'];
+  var CLICK_KEYS = ['gclid','wbraid','gbraid'];
   function readAttribution() {
     var out = {}, i, k, saved = {};
     var qs = new URLSearchParams(window.location.search);
@@ -319,11 +322,33 @@
       k = UTM_KEYS[i];
       out[k] = qs.get(k) || saved[k] || '';
     }
-    out.gclid = qs.get('gclid') || qs.get('wbraid') || qs.get('gbraid') || saved.gclid || '';
+    /* Ad click IDs, same rule as the demo form (shared key usv_click): each
+       its own field, since Google's import takes only a real gclid; the
+       newest click wins and is kept 90 days, Google's import window. */
+    var clk = {}, hit;
+    for (i = 0; i < 3; i++) {
+      k = CLICK_KEYS[i];
+      clk[k] = qs.get(k) || '';
+      if (clk[k]) hit = 1;
+    }
+    try {
+      if (hit) {
+        clk.ts = Date.now();
+        window.localStorage.setItem('usv_click', JSON.stringify(clk));
+      } else {
+        var c = JSON.parse(window.localStorage.getItem('usv_click') || '{}');
+        if (Date.now() - c.ts < 7776e6) clk = c;
+      }
+    } catch (e) { /* no storage: this URL's IDs only */ }
+    for (i = 0; i < 3; i++) out[CLICK_KEYS[i]] = clk[CLICK_KEYS[i]] || '';
     out.landing_page = saved.landing_page || window.location.href;
     out.referrer = saved.referrer || document.referrer || '';
     return out;
   }
+
+  /* Run once at load too, so an ad click is stored even if this visitor never
+     submits here and fills in the demo form on another page instead. */
+  readAttribution();
 
   /* ---- Default SDK -------------------------------------------------------- */
   (function bootDefault(w, d) {

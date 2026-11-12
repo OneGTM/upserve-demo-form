@@ -169,3 +169,42 @@ test.describe('with JavaScript off', () => {
     }
   });
 });
+
+/* Click IDs: same rule as the demo form, sharing usv_click. */
+async function gateFrom(page, url, seed) {
+  await page.addInitScript((s) => {
+    try {
+      if (s) localStorage.setItem('usv_click', JSON.stringify(s));
+      else localStorage.removeItem('usv_click');
+    } catch (e) { /* no-op */ }
+  }, seed || null);
+  await page.goto(url);
+  const t = await open(page);
+  await fill(page);
+  await submit(page, t);
+  await expect.poll(() => subs(page).then((s) => s.length)).toBe(1);
+  return (await subs(page))[0].fields;
+}
+
+test('gate: an iOS click ID gets its own field, never gclid', async ({ page }) => {
+  const f = await gateFrom(page, 'https://example.com/calc?gbraid=GB1');
+  expect(f).toMatchObject({ gbraid: 'GB1', gclid: '', wbraid: '' });
+});
+
+test('gate: a recent click from another page is sent; an expired one is not', async ({ page, context }) => {
+  const f = await gateFrom(page, 'https://example.com/calc',
+    { gclid: 'OLD1', wbraid: '', gbraid: '', ts: Date.now() - 864e5 });
+  expect(f.gclid).toBe('OLD1');
+  const p2 = await context.newPage();
+  const g = await gateFrom(p2, 'https://example.com/calc',
+    { gclid: 'OLD1', wbraid: '', gbraid: '', ts: Date.now() - 91 * 864e5 });
+  expect(g.gclid).toBe('');
+});
+
+test('gate: a click on this page is stored at load, before any submit', async ({ page }) => {
+  await page.addInitScript(() => { try { localStorage.removeItem('usv_click'); } catch (e) { /* no-op */ } });
+  await page.goto('https://example.com/calc?gclid=LOAD1');
+  await open(page);
+  const c = await page.evaluate(() => JSON.parse(localStorage.getItem('usv_click') || '{}'));
+  expect(c.gclid).toBe('LOAD1');
+});
