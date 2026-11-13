@@ -390,8 +390,16 @@ TEAM_ID : 743,
 #### The submit gate
 
 Default's listener does **not** call `preventDefault`, so a raw form would
-navigate away mid-submit. A capture-phase listener on `document` runs ahead of
-Default's and decides what happens:
+navigate away mid-submit. A capture-phase listener on `window` runs ahead of
+Default's and decides what happens.
+
+It has to be `window`. Default's `handshake.default.com/index.js` listens for
+`submit` and Enter `keydown` in the capture phase on `document`, and it loads
+before the embed. A gate on `document` ran after it, so every rejected attempt
+(a 9-digit phone, a honeypot hit, the typo prompt) still became a lead
+(2026-11-12, lead 00QV400000zcXW5MAM). The embed also takes Enter in its fields
+at `window` level and turns it into a real submit, so it goes through the gate
+too. The test stub models handshake this way; keep it that way.
 
 | Outcome | What it does |
 |---|---|

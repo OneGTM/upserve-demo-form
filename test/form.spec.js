@@ -190,6 +190,35 @@ test('honeypot blocks the submission and Default is never called', async ({ page
   expect(await events(page)).toContain('usv_form_blocked');
 });
 
+test('a phone missing a digit blocks the submission and Default is never called',
+  async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await fillContact(page, { phone: '784286086' });
+  await submit(page);
+
+  await expect(page.getByText(/valid mobile number|looks incomplete/i)).toBeVisible();
+  expect(await submissions(page)).toHaveLength(0);
+});
+
+test('Enter in the phone field goes through the gate, not around it', async ({ page }) => {
+  await open(page);
+  await pickRestaurant(page, 'Tautog');
+  await continueToStep2(page);
+  await fillContact(page, { phone: '784286086' });
+  await page.waitForTimeout(FLOOR_MS + 200);   // past the bot speed floor
+  await page.focus('input[name="phone"]');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  expect(await submissions(page)).toHaveLength(0);
+
+  await page.fill('input[name="phone"]', '4018492900');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await submissions(page)).length).toBe(1);
+  expect((await submissions(page))[0].fields.phone).toBe('+14018492900');
+});
+
 test('submitting under the speed floor blocks, and Default is never called',
   async ({ page }) => {
     // A frozen clock makes this deterministic. Racing real time is flaky: on a

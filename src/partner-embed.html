@@ -820,7 +820,24 @@
     window.setTimeout(function () { if (!S.submitted) showDone(); }, 6000);
     /* falls through to Default's listener */
   }
-  document.addEventListener('submit', gate, true);
+  /* Window, capture phase: ahead of everything Default attaches.
+     handshake.default.com listens for submit (and Enter keydown) in the capture
+     phase on `document`, so a gate on `document` ran AFTER it and every
+     rejected attempt (bad phone, honeypot, typo prompt) still reached Default
+     as a lead. Only `window` capture is guaranteed to run first. */
+  window.addEventListener('submit', gate, true);
+
+  /* Enter in a field: handshake also captures on Enter keydown, which can post
+     the form without a submit event. Take Enter first and turn it into a real
+     submit so it goes through the gate. */
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    var t = e.target;
+    if (!t || t.tagName !== 'INPUT' || t.form !== form) return;
+    e.stopPropagation();
+    e.preventDefault();
+    $('usv-submit').click();
+  }, true);
 
   function boot() {
     S.renderedAt = Date.now();
