@@ -1577,7 +1577,7 @@
     });
   }
 
-  on(nameInput, 'keydown', function (e) {
+  function onNameKey(e) {
     var open = listbox.classList.contains('is-open');
 
     if (e.key === 'ArrowDown') {
@@ -1598,7 +1598,8 @@
       if (open && active >= 0) choose(active);
       else closeList();
     }
-  });
+  }
+  on(nameInput, 'keydown', onNameKey);
 
   /* =========================================================================
      Business type
@@ -2494,8 +2495,9 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
   /*
      The submit gate.
 
-     Runs in the capture phase on `document`, which puts it ahead of the
-     listener Default attaches to the form itself. That ordering is the whole
+     Runs in the capture phase on `window`, which puts it ahead of every
+     listener Default attaches (handshake.js on `document`, the pixel on the
+     form itself). That ordering is the whole
      point: it lets us decide, before Default ever sees the event, whether this
      submission should exist at all.
 
@@ -2566,7 +2568,26 @@ var TLDS = 'com net org edu gov co io us ca biz info me'.split(' ');
 
     /* falls through to Default's listener */
   }
-  document.addEventListener('submit', gate, true);
+  /* Window, capture phase: ahead of everything Default attaches.
+     handshake.default.com listens for submit (and Enter keydown) in the capture
+     phase on `document`, so a gate on `document` ran AFTER it and every
+     rejected attempt (bad phone, honeypot, typo prompt) still reached Default
+     as a lead. Only `window` capture is guaranteed to run first. */
+  window.addEventListener('submit', gate, true);
+
+  /* Enter in a field: handshake also captures on Enter keydown, which can post
+     the form without a submit event. Take Enter first and turn it into a real
+     submit so it goes through the gate. */
+  window.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    var t = e.target;
+    if (!t || t.tagName !== 'INPUT' || t.form !== form) return;
+    e.stopPropagation();
+    if (t === nameInput) { onNameKey(e); return; }
+    e.preventDefault();
+    if (S.step !== 2) { goStep(2); return; }
+    submitBtn.click();
+  }, true);
 
   /* If a scheduler opened and the visitor closed it without booking,
      tell Default so the lead doesn't sit in limbo. */

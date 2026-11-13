@@ -31,7 +31,9 @@ const STUB = `<script>
   window.__default__.displayLoadingModal = function () {};
   window.__default__loaded = true;          // stop the real SDK loading
 
-  // Default's own listener: bubble phase on the form, reads the DOM at submit.
+  // Default's listener, modelled on handshake.default.com: capture phase on
+  // document, registered before the embed loads. A gate that only beat a
+  // form-level listener lets every rejected submit through to this one.
   document.addEventListener('submit', function (e) {
     var f = e.target;
     if (!f.hasAttribute || !f.hasAttribute('data-default-form-id')) return;
@@ -66,7 +68,7 @@ const STUB = `<script>
       fields: fields, labels: labels, optionLabels: optionLabels, optionsByName: optionsByName
     });
     setTimeout(function () { CB.onSuccess && CB.onSuccess({ success: true }); }, 20);
-  });
+  }, true);
 
   // dataLayer capture
   window.dataLayer = window.dataLayer || [];
